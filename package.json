@@ -1,0 +1,24 @@
+{
+  "_comment": "Root workspace package for running the TabTwin server, web app, and extension builds.",
+  "name": "tabtwin",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Real-time browser tab collaboration with ghost cursors, annotations, and an AI browser agent.",
+  "license": "MIT",
+  "type": "module",
+  "workspaces": [
+    "server",
+    "webapp",
+    "extension"
+  ],
+  "scripts": {
+    "server": "npm --workspace server run start",
+    "dev:web": "npm --workspace webapp run dev",
+    "dev:extension": "npm --workspace extension run dev",
+    "build": "npm --workspaces run build",
+    "lint": "npm --workspaces run lint"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
