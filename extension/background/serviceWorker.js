@@ -3,8 +3,8 @@ import { createHostWebRTC } from '../lib/webrtc.js';
 import { createCrdtBridge } from '../lib/crdt.js';
 import { runClaudeAgent } from '../lib/aiAgent.js';
 
-const API_URL = 'http://localhost:3001';
-const WS_URL = 'ws://localhost:3001';
+const API_URL = 'https://tabtwinserver-production.up.railway.app';
+const WS_URL = 'wss://tabtwinserver-production.up.railway.app';
 
 const state = {
   session: null,

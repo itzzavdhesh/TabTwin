@@ -1,5 +1,5 @@
 {
-  "_comment": "Chrome Manifest V3 declaration for the TabTwin host extension.",
+  
   "manifest_version": 3,
   "name": "TabTwin",
   "version": "1.0.0",
@@ -17,7 +17,7 @@
     "type": "module"
   },
   "action": {
-    "default_popup": "popup/index.html"
+    "default_popup": "popup-dist/index.html"
   },
   "content_scripts": [
     {
