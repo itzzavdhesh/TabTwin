@@ -1,0 +1,18 @@
+{
+  "_comment": "Package manifest for the TabTwin signaling server.",
+  "name": "@tabtwin/server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "lint": "node --check index.js && node --check sessionManager.js && node --check signalingHandler.js",
+    "build": "node --check index.js && node --check sessionManager.js && node --check signalingHandler.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "ws": "^8.17.1"
+  }
+}
