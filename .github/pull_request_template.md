@@ -1,25 +1,43 @@
-## Summary: Describe your changes
+## Summary
 
 <!-- One-sentence description of what this PR does. -->
 
-## Issue ticket number and link
+## Related Issue
 
 Closes #
+
+<!-- Example: Closes #123 -->
+
+## Contributor Details
+
+* Name:
+* GitHub Username:
+* Program (SSoC / GSSoC / Hacktoberfest / Other):
 
 ## Changes
 
 <!-- Bullet list of what changed and why. -->
-- 
+
+*
 
 ## Testing
 
 <!-- How did you verify this works? -->
-- [ ] Added/updated tests
-- [ ] Tested locally (describe steps)
+
+* [ ] Added/updated tests
+* [ ] Tested locally (describe steps below)
+
+### Testing Steps
+
+1.
+2.
+3.
 
 ## Checklist before requesting a review
 
-- [ ] Code follows the project's TypeScript style conventions
-- [ ] No secrets or `.env` values are committed
-- [ ] I have performed a self-review of my code
-- [ ] CI passes
+* [ ] Code follows the project's conventions
+* [ ] No secrets or `.env` values are committed
+* [ ] I have performed a self-review of my code
+* [ ] Documentation has been updated if needed
+* [ ] CI passes
+* [ ] Linked the related issue above
