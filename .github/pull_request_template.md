@@ -4,7 +4,7 @@
 
 ## Related Issue
 
-Closes #
+Closes #<issue_number> 
 
 <!-- Example: Closes #123 -->
 
