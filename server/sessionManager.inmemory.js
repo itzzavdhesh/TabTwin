@@ -24,11 +24,24 @@ const GUEST_COLORS = ['#2563eb', '#16a34a', '#dc2626', '#9333ea', '#ea580c', '#0
  *
  * @param {{ clientUrl: string }} options
  */
+const MAX_ID_ATTEMPTS = 10;
+
 export function createSessionManager({ clientUrl }) {
   const sessions = new Map();
 
   async function createSession({ hostName = 'Host' } = {}) {
-    const id = crypto.randomBytes(4).toString('hex');
+    let id;
+    for (let attempt = 0; attempt < MAX_ID_ATTEMPTS; attempt++) {
+      const candidate = crypto.randomBytes(4).toString('hex');
+      if (!sessions.has(candidate)) {
+        id = candidate;
+        break;
+      }
+    }
+    if (!id) {
+      throw new Error('Failed to generate a unique session ID after maximum attempts.');
+    }
+
     const session = {
       id,
       hostName,

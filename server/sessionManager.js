@@ -5,6 +5,7 @@
 import crypto from 'node:crypto';
 
 const SESSION_TTL_SECONDS = 86_400; // 24 hours
+const MAX_ID_ATTEMPTS = 10;
 
 const DEFAULT_PERMISSIONS = {
   canHighlight: true,
@@ -67,7 +68,28 @@ export function createSessionManager({ clientUrl, redisClient }) {
   // ---------- public API ----------
 
   async function createSession({ hostName = 'Host' } = {}) {
-    const id = crypto.randomBytes(4).toString('hex');
+    let id;
+    for (let attempt = 0; attempt < MAX_ID_ATTEMPTS; attempt++) {
+      const candidate = crypto.randomBytes(4).toString('hex');
+      // SET NX EX: atomically write only if the key does not already exist.
+      // Returns 'OK' on success, null if the key was already present (collision).
+      const placeholder = JSON.stringify({ _reserved: true });
+      const result = await redisClient.set(
+        redisKey(candidate),
+        placeholder,
+        'EX',
+        SESSION_TTL_SECONDS,
+        'NX'
+      );
+      if (result === 'OK') {
+        id = candidate;
+        break;
+      }
+    }
+    if (!id) {
+      throw new Error('Failed to generate a unique session ID after maximum attempts.');
+    }
+
     const session = {
       id,
       hostName,
@@ -79,6 +101,7 @@ export function createSessionManager({ clientUrl, redisClient }) {
       activityLog: []
     };
 
+    // Overwrite the placeholder with the full session object.
     await _save(session);
     socketStore.set(id, { hostSocket: null, guests: [] });
     return _hydrate(session);
