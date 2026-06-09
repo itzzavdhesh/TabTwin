@@ -1,43 +1,34 @@
-## Summary
+## 🚀 Program
+<!-- Choose one: SSOC, ELUSOC -->
 
-<!-- One-sentence description of what this PR does. -->
+## 📝 Description
+<!-- Describe what this PR does and why -->
 
-## Related Issue
+## 🔗 Related Issue
+Closes #<!-- issue number -->
 
-Closes #<issue_number> 
+## 🔄 Type of Change
+<!-- Check all that apply -->
+- [ ] 🐛 Bug fix
+- [ ] ✨ New feature
+- [ ] 🔍 SEO improvement
+- [ ] 🎨 Style / UI improvement
+- [ ] ♿ Accessibility improvement
+- [ ] 📝 Documentation
+- [ ] ⚙️ CI / configuration
+- [ ] 🧹 Refactor / cleanup
 
-<!-- Example: Closes #123 -->
+## 🧪 How to Test
+<!-- Steps to verify your change works correctly -->
+1. Open `http://localhost:5173` (or the guest webapp URL) in a browser
+2. ...
 
-## Contributor Details
+## 📸 Screenshots (if applicable)
+<!-- Before and after screenshots for UI changes -->
 
-* Name:
-* GitHub Username:
-* Program (SSoC / GSSoC / Hacktoberfest / Other):
-
-## Changes
-
-<!-- Bullet list of what changed and why. -->
-
-*
-
-## Testing
-
-<!-- How did you verify this works? -->
-
-* [ ] Added/updated tests
-* [ ] Tested locally (describe steps below)
-
-### Testing Steps
-
-1.
-2.
-3.
-
-## Checklist before requesting a review
-
-* [ ] Code follows the project's conventions
-* [ ] No secrets or `.env` values are committed
-* [ ] I have performed a self-review of my code
-* [ ] Documentation has been updated if needed
-* [ ] CI passes
-* [ ] Linked the related issue above
+## ✅ Checklist
+- [ ] I am contributing under SSOC or ELUSOC
+- [ ] My code follows the project's existing style
+- [ ] I have tested my changes in a browser
+- [ ] I have linked the related issue above
+- [ ] My PR title follows Conventional Commits format (e.g. `feat: add annotation tools`)
