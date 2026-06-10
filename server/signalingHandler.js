@@ -16,7 +16,9 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
 
     try {
       const { sessionId, guestId, event, payload } = JSON.parse(message);
-      deliverLocally(sessionId, guestId, event, payload);
+      deliverLocally(sessionId, guestId, event, payload).catch((err) => {
+        console.error('[TabTwin] Error delivering Pub/Sub message locally:', err.message);
+      });
     } catch (err) {
       console.error('[TabTwin] Error processing Pub/Sub message:', err.message);
     }
@@ -229,7 +231,9 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
   }
 
   function publishToRemote(targetServerId, message) {
-    redisClient.publish(`tabtwin:server:${targetServerId}`, JSON.stringify(message));
+    redisClient.publish(`tabtwin:server:${targetServerId}`, JSON.stringify(message)).catch((err) => {
+      console.error(`[TabTwin] Failed to publish message to remote server ${targetServerId}:`, err.message);
+    });
   }
 
   return { handleConnection };

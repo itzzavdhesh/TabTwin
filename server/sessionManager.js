@@ -178,7 +178,7 @@ export function createSessionManager({ clientUrl, redisClient, serverId }) {
       if (sockets.hostSocket === socket) {
         sockets.hostSocket = null;
         const data = await _load(sessionId);
-        if (data) {
+        if (data && data.hostServerId === serverId) {
           data.hostServerId = null;
           data.activityLog.unshift({ at: Date.now(), message: 'Host disconnected' });
           await _save(data);
