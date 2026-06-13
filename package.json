@@ -16,9 +16,15 @@
     "dev:web": "npm --workspace webapp run dev",
     "dev:extension": "npm --workspace extension run dev",
     "build": "npm --workspaces run build",
-    "lint": "npm --workspaces run lint"
+    "lint": "npm --workspaces run lint",
+    "prepare": "husky"
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.0.2",
+    "@commitlint/config-conventional": "^21.0.2",
+    "husky": "^9.1.7"
   }
 }

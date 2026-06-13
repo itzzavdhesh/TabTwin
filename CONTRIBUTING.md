@@ -34,6 +34,67 @@ npm run dev:web
 5. Select the `extension/` folder.
 6. Open the TabTwin popup and start a session.
 
+## Commit Messages
+
+TabTwin enforces [Conventional Commits](https://www.conventionalcommits.org/) via `commitlint`. The `commit-msg` git hook rejects non-conforming messages automatically.
+
+### Format
+
+```
+<type>(<scope>): <short summary>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+**Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `perf`, `ci`, `build`, `revert`
+
+**Scope** (optional): area of the codebase — e.g. `extension`, `server`, `webapp`, `auth`, `ws`
+
+### Good commits
+
+```
+feat(extension): add ghost cursor visibility toggle
+fix(server): handle duplicate session ID on reconnect
+docs: update setup instructions for Windows
+refactor(webapp): extract useSession hook from App component
+chore: upgrade ws to v8.18.0
+test(server): add unit tests for session cleanup logic
+ci: add commitlint check to GitHub Actions
+```
+
+### Bad commits
+
+```
+# Too vague — no type, no context
+fixed stuff
+
+# No type prefix
+update README
+
+# Wrong type capitalized
+Fix: broken websocket
+
+# Imperative mood broken, too long for subject line
+feat: I added a new feature that allows users to toggle the ghost cursor visibility in the extension popup and also fixed a small bug
+
+# Missing colon after type
+feat add dark mode
+```
+
+### Breaking changes
+
+Add `!` after the type/scope and a `BREAKING CHANGE:` footer:
+
+```
+feat(server)!: change session payload shape
+
+BREAKING CHANGE: `sessionId` renamed to `id` in all WS events
+```
+
+---
+
 ## Coding Conventions
 
 - Keep each file focused on one responsibility.
