@@ -12,7 +12,7 @@ export default function Landing() {
           <div className="flex flex-col justify-center">
             <p className="text-sm font-semibold uppercase tracking-wide text-teal-600">Open source browser collaboration</p>
             <h1 className="mt-3 max-w-3xl text-5xl font-bold leading-tight text-slate-950">TabTwin</h1>
-            <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-650">
+            <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
               Share a live browser tab with a teammate or AI agent. Guests get a ghost cursor, annotations, and approved actions without installing anything.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
