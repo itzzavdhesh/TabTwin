@@ -87,7 +87,7 @@ export function createSignalingHandler({ sessions }) {
             annotate: perms.canAnnotate
           };
 
-          if (actionType in permissionMap && !permissionMap[actionType]) {
+          if (!(actionType in permissionMap) || !permissionMap[actionType]) {
             safeSend(socket, {
               event: 'error',
               payload: { message: `Permission denied: ${actionType} is not allowed.` }
