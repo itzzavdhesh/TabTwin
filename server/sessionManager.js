@@ -90,9 +90,12 @@ export function createSessionManager({ clientUrl, redisClient }) {
       throw new Error('Failed to generate a unique session ID after maximum attempts.');
     }
 
+    const hostToken = crypto.randomBytes(32).toString('hex');
+
     const session = {
       id,
       hostName,
+      hostToken,
       link: `${clientUrl.replace(/\/$/, '')}/join/${id}`,
       createdAt: new Date().toISOString(),
       // hostSocket is NOT stored in Redis — it lives only in socketStore.

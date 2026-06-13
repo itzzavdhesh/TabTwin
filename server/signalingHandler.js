@@ -26,6 +26,11 @@ export function createSignalingHandler({ sessions }) {
 
     switch (event) {
       case 'host:connect': {
+        if (!session || session.hostToken !== payload.hostToken) {
+          safeSend(socket, { event: 'error', payload: { message: 'Unauthorized or session not found.' } });
+          return;
+        }
+
         const nextSession = await sessions.attachHost(payload.sessionId, socket);
         if (!nextSession) {
           safeSend(socket, { event: 'error', payload: { message: 'Session not found.' } });

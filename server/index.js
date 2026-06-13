@@ -59,6 +59,7 @@ app.post('/api/session/create', asyncHandler(async (req, res) => {
   const session = await sessions.createSession({ hostName });
   res.status(201).json({
     session_id: session.id,
+    host_token: session.hostToken,
     link: session.link,
     permissions: session.permissions
   });
@@ -71,20 +72,40 @@ app.get('/api/session/:id', asyncHandler(async (req, res) => {
     return;
   }
 
-  res.json({
+  const authHeader = req.headers.authorization;
+  const isHost = authHeader && authHeader === `Bearer ${session.hostToken}`;
+
+  const response = {
     exists: true,
     session_id: session.id,
-    guests: session.guests.map((guest) => ({
+    createdAt: session.createdAt
+  };
+
+  if (isHost) {
+    response.guests = session.guests.map((guest) => ({
       id: guest.id,
       name: guest.name,
       color: guest.color,
       permissions: guest.permissions
-    })),
-    createdAt: session.createdAt
-  });
+    }));
+  }
+
+  res.json(response);
 }));
 
 app.delete('/api/session/:id', asyncHandler(async (req, res) => {
+  const session = await sessions.getSession(req.params.id);
+  if (!session) {
+    res.status(404).json({ ended: false });
+    return;
+  }
+
+  const authHeader = req.headers.authorization;
+  if (!authHeader || authHeader !== `Bearer ${session.hostToken}`) {
+    res.status(403).json({ error: 'Unauthorized' });
+    return;
+  }
+
   const ended = await sessions.endSession(req.params.id);
   res.status(ended ? 200 : 404).json({ ended });
 }));
