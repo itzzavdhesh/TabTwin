@@ -84,7 +84,7 @@ app.get('/api/session/:id', asyncHandler(async (req, res) => {
 }));
 
 app.post('/api/agent/run', asyncHandler(async (req, res) => {
-  const { sessionId, command, tabs, permissions } = req.body;
+  const { sessionId, command, tabs } = req.body;
   
   if (!sessionId) {
     return res.status(401).json({ error: 'Session ID is required.' });
@@ -94,6 +94,13 @@ app.post('/api/agent/run', asyncHandler(async (req, res) => {
   if (!session) {
     return res.status(401).json({ error: 'Invalid or expired session.' });
   }
+
+  // Use trusted server-side permissions, mapping them to the format expected by the LLM
+  const permissions = {
+    click: session.permissions.canClick,
+    type: session.permissions.canType,
+    navigate: session.permissions.canNavigate
+  };
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -125,7 +132,13 @@ app.post('/api/agent/run', asyncHandler(async (req, res) => {
     })
   });
 
-  const body = await response.json();
+  let body;
+  try {
+    body = await response.json();
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to parse upstream response as JSON.' });
+  }
+  
   res.status(response.status).json(body);
 }));
 
