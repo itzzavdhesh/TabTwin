@@ -40,12 +40,8 @@ TabTwin enforces [Conventional Commits](https://www.conventionalcommits.org/) vi
 
 ### Format
 
-```
+```text
 <type>(<scope>): <short summary>
-
-[optional body]
-
-[optional footer(s)]
 ```
 
 **Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `perf`, `ci`, `build`, `revert`
@@ -54,7 +50,7 @@ TabTwin enforces [Conventional Commits](https://www.conventionalcommits.org/) vi
 
 ### Good commits
 
-```
+```text
 feat(extension): add ghost cursor visibility toggle
 fix(server): handle duplicate session ID on reconnect
 docs: update setup instructions for Windows
@@ -66,7 +62,7 @@ ci: add commitlint check to GitHub Actions
 
 ### Bad commits
 
-```
+```text
 # Too vague — no type, no context
 fixed stuff
 
@@ -87,10 +83,8 @@ feat add dark mode
 
 Add `!` after the type/scope and a `BREAKING CHANGE:` footer:
 
-```
+```text
 feat(server)!: change session payload shape
-
-BREAKING CHANGE: `sessionId` renamed to `id` in all WS events
 ```
 
 ---
