@@ -11,7 +11,6 @@ const state = {
   guests: [],
   activityLog: [],
   settings: {
-    anthropicApiKey: '',
     allowAgentClick: false,
     allowAgentType: false,
     allowAgentNavigate: false
@@ -163,7 +162,8 @@ async function runAgent(command) {
   if (!state.session) return snapshot();
   const tabs = await collectOpenTabContent();
   const plan = await runClaudeAgent({
-    apiKey: state.settings.anthropicApiKey,
+    apiUrl: API_URL,
+    sessionId: state.session.id,
     command,
     tabs,
     permissions: {
