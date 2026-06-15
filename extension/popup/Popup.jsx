@@ -34,15 +34,20 @@ export default function Popup() {
     return new Promise((resolve) => chrome.runtime.sendMessage({ type, payload }, resolve));
   }
 
-  async function startSession() {
-    setBusy(true);
-    const response = await send('session:start');
-    setBusy(false);
-    if (response?.session) {
-      setState((current) => ({ ...current, session: response.session, activityLog: response.activityLog || [] }));
-      setScreen('active');
-    }
+async function startSession() {
+  setBusy(true);
+  const response = await send('session:start');
+  setBusy(false);
+  if (response?.session) {
+    setState((current) => ({ ...current, session: response.session, activityLog: response.activityLog || [] }));
+    setScreen('active');
+  } else {
+    setState((current) => ({
+      ...current,
+      activityLog: response?.activityLog || [{ message: 'Failed to start session. Is the server running?', at: Date.now() }]
+    }));
   }
+}
 
   async function endSession() {
     const response = await send('session:end');
