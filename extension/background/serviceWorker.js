@@ -70,17 +70,26 @@ async function handleMessage(message, sender) {
 }
 
 async function startSession() {
-  const response = await fetch(`${API_URL}/api/session/create`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ hostName: 'Host' })
-  });
-  const session = await response.json();
-  state.session = { id: session.session_id, link: session.link };
-  state.guests = [];
-  addLog('Session started');
-  connectSocket();
-  await chrome.storage.local.set({ tabTwinSession: state.session });
+  try {
+    const response = await fetch(`${API_URL}/api/session/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hostName: 'Host' })
+    });
+    if (!response.ok) throw new Error(`Server error: ${response.status}`);
+    const session = await response.json();
+if (!session.session_id || !session.link) {
+  throw new Error('Invalid response from server: missing session_id or link');
+}
+state.session = { id: session.session_id, link: session.link };
+    state.session = { id: session.session_id, link: session.link };
+    state.guests = [];
+    addLog('Session started');
+    connectSocket();
+    await chrome.storage.local.set({ tabTwinSession: state.session });
+  } catch (err) {
+    addLog(`Failed to start session: ${err.message}`);
+  }
   return snapshot();
 }
 
