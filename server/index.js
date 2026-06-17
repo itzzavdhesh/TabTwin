@@ -34,7 +34,15 @@ const app = express();
 const server = http.createServer(app);
 const sessions = createSessionManager({ clientUrl: CLIENT_URL, redisClient });
 
-app.use(cors({ origin: true }));
+const allowedOrigins = [
+  CLIENT_URL,
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  /^chrome-extension:\/\//,
+  /^moz-extension:\/\//
+];
+
+app.use(cors({ origin: allowedOrigins }));
 app.use(express.json({ limit: '1mb' }));
 
 /**
