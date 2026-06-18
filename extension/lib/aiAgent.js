@@ -20,8 +20,9 @@ export async function runClaudeAgent({ apiKey, command, tabs, permissions }) {
       max_tokens: 1800,
       system: [
         'You are TabTwin browser agent planner.',
-        'Respond only with JSON in this shape: {"summary":"...","actions":[{"type":"navigate","tabIndex":0},{"type":"read","tabIndex":1},{"type":"click","selector":"#compose-button"},{"type":"type","selector":"#reply-box","text":"drafted reply"}]}.',
-        'Do not include markdown fences. Respect permissions and omit disallowed actions.'
+        'Respond only with JSON in this shape: {"summary":"...","actions":[{"type":"navigate","url":"...","confidence":0.95},{"type":"read","tabIndex":1,"confidence":0.99},{"type":"click","selector":"#compose-button","confidence":0.55},{"type":"type","selector":"#reply-box","text":"drafted reply","confidence":0.85}]}.',
+        'Do not include markdown fences. Respect permissions and omit disallowed actions.',
+        'Each action MUST include a "confidence" field, which is a decimal number between 0.0 and 1.0.'
       ].join(' '),
       messages: [
         {
@@ -50,19 +51,28 @@ function sanitizePlan(plan, permissions) {
   const actions = Array.isArray(plan.actions) ? plan.actions : [];
   return {
     summary: String(plan.summary || 'Agent plan generated.'),
-    actions: actions.filter((action) => {
-      if (action.type === 'click') return permissions.click;
-      if (action.type === 'type') return permissions.type;
-      if (action.type === 'navigate') return permissions.navigate;
-      return true;
-    })
+    actions: actions
+      .filter((action) => {
+        if (action.type === 'click') return permissions.click;
+        if (action.type === 'type') return permissions.type;
+        if (action.type === 'navigate') return permissions.navigate;
+        return true;
+      })
+      .map((action) => ({
+        ...action,
+        confidence: typeof action.confidence === 'number' ? action.confidence : 0.8
+      }))
   };
 }
 
 function fallbackPlan(command, tabs, reason = 'No Claude API key configured.') {
   return {
     summary: `${reason} Prepared a read-only plan for: ${command}`,
-    actions: tabs.slice(0, 3).map((_tab, index) => ({ type: 'read', tabIndex: index }))
+    actions: tabs.slice(0, 3).map((_tab, index) => ({
+      type: 'read',
+      tabIndex: index,
+      confidence: 0.9
+    }))
   };
 }
 
