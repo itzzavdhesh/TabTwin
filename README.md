@@ -49,7 +49,7 @@ npm install
 2. Run the signaling server.
 
 ```bash
-cp .env.example .env
+cp .env.example server/.env
 npm run server
 ```
 
