@@ -17,6 +17,7 @@
     "dev:extension": "npm --workspace extension run dev",
     "build": "npm --workspaces run build",
     "lint": "npm --workspaces run lint",
+    "test": "node --test tests/**/*.test.js",
     "prepare": "husky"
   },
   "engines": {

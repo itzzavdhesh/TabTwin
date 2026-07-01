@@ -73,6 +73,10 @@ npm run dev:web
 
 Open the link the host shares. That is it.
 
+## Session Recording and Playback
+
+Hosts can enable session recording from the guest session view. When enabled, collaboration events are captured into a lightweight timeline that stays isolated from the live session transport. The recording can be reviewed through playback controls and a timeline after the session ends without changing the existing WebRTC/WebSocket collaboration flow.
+
 ## Environment Variables
 
 | Variable            | Required                                                 | Description                                                                          |
