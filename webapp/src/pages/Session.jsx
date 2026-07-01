@@ -17,6 +17,7 @@ export default function Session({ sessionId }) {
   const [recordingEnabled, setRecordingEnabled] = useState(false);
   const [playbackCurrentTime, setPlaybackCurrentTime] = useState(0);
   const [playbackEvents, setPlaybackEvents] = useState([]);
+  const [playbackState, setPlaybackState] = useState('idle');
   const playbackEngineRef = useRef(null);
   const session = useSession({ sessionId, guestName, recordingEnabled });
   const cursor = useCursor({ onMove: session.sendCursorMove });
@@ -27,7 +28,10 @@ export default function Session({ sessionId }) {
     engine.setRenderer((event) => {
       setPlaybackEvents((current) => [...current, event]);
     });
-    engine.setOnProgress((time) => setPlaybackCurrentTime(time));
+    engine.setOnProgress((time) => {
+      setPlaybackCurrentTime(time);
+      setPlaybackState(engine.state);
+    });
     return () => engine.stop();
   }, []);
 
@@ -35,12 +39,14 @@ export default function Session({ sessionId }) {
     if (!session.recording) {
       setPlaybackEvents([]);
       setPlaybackCurrentTime(0);
+      setPlaybackState('idle');
       return;
     }
 
     playbackEngineRef.current?.load(session.recording);
     setPlaybackEvents([]);
     setPlaybackCurrentTime(0);
+    setPlaybackState('idle');
   }, [session.recording]);
 
   const playbackDuration = useMemo(() => playbackEngineRef.current?.getDuration() ?? 0, [session.recording, playbackCurrentTime]);
@@ -54,7 +60,7 @@ export default function Session({ sessionId }) {
             <h1 className="text-xl font-bold text-slate-950">Connected as {guestName}</h1>
           </div>
           <div className="flex items-center gap-3">
-            <RecordingBadge enabled={recordingEnabled} state={session.recording ? 'recording' : 'idle'} />
+            <RecordingBadge enabled={recordingEnabled} state={playbackState === 'playing' ? 'playback' : recordingEnabled ? 'recording' : 'idle'} />
             <SessionStatus status={session.status} label={session.statusLabel} />
           </div>
         </div>

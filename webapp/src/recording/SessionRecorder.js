@@ -12,11 +12,15 @@ export class SessionRecorder {
 
   start() {
     if (!this.enabled) return;
+    if (this.isRecording) return;
+
     this.isRecording = true;
-    this.timeline = [];
-    this.sessionStartedAt = Date.now();
+    this.sessionStartedAt = this.sessionStartedAt ?? Date.now();
     this.lastCursorEvent = null;
-    this.capture({ type: 'session:start', payload: { startedAt: this.sessionStartedAt }, participantId: this.participantId, timestamp: this.sessionStartedAt });
+    const hasStartEvent = this.timeline.some((event) => event.eventType === 'session:start');
+    if (!hasStartEvent) {
+      this.capture({ type: 'session:start', payload: { startedAt: this.sessionStartedAt }, participantId: this.participantId, timestamp: this.sessionStartedAt });
+    }
   }
 
   stop() {
@@ -26,7 +30,7 @@ export class SessionRecorder {
   }
 
   capture(event) {
-    if (!this.enabled || !this.isRecording) return null;
+    if (!event || typeof event !== 'object' || !this.isRecording) return null;
 
     const eventType = event.type || event.eventType || event.event || 'unknown';
     if (!isRecordingEvent(eventType)) return null;
@@ -40,17 +44,18 @@ export class SessionRecorder {
   }
 
   exportTimeline() {
-    if (!this.enabled) return [];
-
     const sortedEvents = this.timeline
       .slice()
       .sort((left, right) => left.timestamp - right.timestamp);
 
     if (!sortedEvents.length) return [];
 
+    const baseTimestamp = sortedEvents[0].timestamp;
+
     return sortedEvents.map((event, index) => ({
       ...event,
-      relativeTimestamp: index === 0 ? 0 : Math.max(0, event.timestamp - sortedEvents[0].timestamp)
+      payload: this.clonePayload(event.payload),
+      relativeTimestamp: index === 0 ? 0 : Math.max(0, event.timestamp - baseTimestamp)
     }));
   }
 
@@ -63,7 +68,7 @@ export class SessionRecorder {
 
   normalizeEvent(event, eventType) {
     const timestamp = Number.isFinite(event.timestamp) ? event.timestamp : Date.now();
-    const payload = event.payload ?? {};
+    const payload = this.clonePayload(event.payload);
 
     if (eventType === 'cursor:move') {
       if (!payload || typeof payload !== 'object') return null;
@@ -88,14 +93,23 @@ export class SessionRecorder {
   }
 
   shouldSkipCursorEvent(payload) {
-    const previous = this.timeline[this.timeline.length - 1];
-    const samePosition = previous?.eventType === 'cursor:move' && previous.payload?.x === payload?.x && previous.payload?.y === payload?.y;
-    if (samePosition) return true;
-
+    const previous = this.lastCursorEvent;
     if (!previous) return false;
+
+    const samePosition = previous.payload?.x === payload?.x && previous.payload?.y === payload?.y;
+    if (samePosition) return true;
 
     const delta = Math.abs((payload?.x ?? 0) - (previous.payload?.x ?? 0)) + Math.abs((payload?.y ?? 0) - (previous.payload?.y ?? 0));
     return delta <= 1;
+  }
+
+  clonePayload(payload) {
+    if (!payload || typeof payload !== 'object') return {};
+    if (Array.isArray(payload)) return payload.map((item) => this.clonePayload(item));
+    return Object.entries(payload).reduce((result, [key, value]) => {
+      result[key] = value && typeof value === 'object' ? this.clonePayload(value) : value;
+      return result;
+    }, {});
   }
 
   buildEvent(eventType, participantId, payload, timestamp) {

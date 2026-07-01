@@ -10,6 +10,8 @@ export const RECORDING_EVENT_TYPES = new Set([
   'scroll',
   'action:request',
   'action:approve',
+  'click',
+  'typing',
   'typing:approve'
 ]);
 
