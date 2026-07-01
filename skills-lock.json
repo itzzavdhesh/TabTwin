@@ -7,11 +7,11 @@
       "skillPath": "skills/chrome-extensions/SKILL.md",
       "computedHash": "d7013d109750435e4d9d94f969ea7016eebd498d461bf2afb93badf5e54f1e62"
     },
-    "tailwind-design-system": {
-      "source": "wshobson/agents",
+    "tailwind-best-practices": {
+      "source": "mastra-ai/mastra",
       "sourceType": "github",
-      "skillPath": "plugins/frontend-mobile-development/skills/tailwind-design-system/SKILL.md",
-      "computedHash": "992ab1e874c4f4159aa18d4ff45d1c3f86f322f0bd2a6744cc32f7d6147f9f06"
+      "skillPath": ".claude/skills/tailwind-best-practices/SKILL.md",
+      "computedHash": "5510ae1b5034f6dc083fe30821c6df832248ef9206500130cd0fcddd96a565a4"
     }
   }
 }
