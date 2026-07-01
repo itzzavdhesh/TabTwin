@@ -41,6 +41,15 @@ Quick Redis: `docker run -d -p 6379:6379 redis:7-alpine`
 - **Extension content scripts**: Plain JS files loaded by Manifest V3 `content_scripts`. These are NOT processed by Vite — no JSX, no imports.
 - **Extension popup**: React + Vite, rooted at `popup/`. Output goes to `popup-dist/` which `manifest.json` references for `default_popup`.
 
+## Installed Skills
+
+Skills live in `.agents/skills/`.
+
+| Skill Name | Use Case |
+| --- | --- |
+| chrome-extensions | Build, debug, and publish Chrome MV3 extensions — manifest, content scripts, service workers, popups, Chrome APIs, Web Store submission. |
+| tailwind-design-system | Build scalable design systems with Tailwind CSS v4 — design tokens, component libraries, responsive patterns. |
+
 ## Gotchas
 
 - Server crashes on startup without `REDIS_URL`. No graceful degradation.
