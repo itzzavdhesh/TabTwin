@@ -37,10 +37,14 @@
 <body>
   <h1>My Extension</h1>
   <div id="content"></div>
-  <script src="popup.js"></script>
+  <script type="module" src="popup.js"></script>
 </body>
 </html>
 ```
+
+The `type="module"` script is loaded as an ES module, so top-level `await` (used in the examples
+below) is valid. With a classic `<script src="popup.js">`, top-level `await` is a syntax error —
+you'd have to wrap the code in `document.addEventListener('DOMContentLoaded', async () => { … })`.
 
 ## Persistence
 

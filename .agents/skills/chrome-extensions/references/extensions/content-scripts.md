@@ -62,9 +62,8 @@ chrome.tabs.sendMessage(tabId, { type: 'UPDATE', data: newData });
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'GET_CONTENT') {
     const text = document.body.innerText;
-    sendResponse({ text });
+    sendResponse({ text }); // synchronous — no `return true` needed
   }
-  return true; // Keep channel open for async sendResponse
 });
 ```
 

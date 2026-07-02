@@ -348,10 +348,12 @@ export function Container({ className, size, ...props }: ContainerProps) {
 </Container>
 ```
 
-For advanced animation and dark mode patterns, see [references/advanced-patterns.md](references/advanced-patterns.md):
+For advanced animation and dark mode patterns:
 
-- **Pattern 5: Native CSS Animations** — dialog `@keyframes`, native popover API with `@starting-style`, `allow-discrete` transitions, and a full `DialogContent`/`DialogOverlay` implementation using Radix UI
-- **Pattern 6: Dark Mode** — `ThemeProvider` context with `localStorage` persistence, `prefers-color-scheme` detection, meta `theme-color` update, and a `ThemeToggle` button component
+- **Native CSS Animations** — dialog `@keyframes`, native popover API with `@starting-style`, `allow-discrete` transitions, and a full `DialogContent`/`DialogOverlay` implementation using Radix UI
+- **Dark Mode** — `ThemeProvider` context with `localStorage` persistence, `prefers-color-scheme` detection, meta `theme-color` update, and a `ThemeToggle` button component
+
+(These build on the same token/variant foundations described above.)
 
 ## Utility Functions
 
@@ -374,7 +376,7 @@ export const focusRing = cn(
 export const disabled = "disabled:pointer-events-none disabled:opacity-50";
 ```
 
-For advanced v4 CSS patterns, the full v3-to-v4 migration checklist, and complete best practices, see [references/advanced-patterns.md](references/advanced-patterns.md):
+Additional advanced v4 CSS patterns and best practices (translate to v3 config for TabTwin — see the SKILL.md warning):
 
 - **Custom `@utility`** — reusable CSS utilities for decorative lines and text gradients
 - **Theme modifiers** — `@theme inline` (reference other CSS vars), `@theme static` (always output), `@import "tailwindcss" theme(static)`

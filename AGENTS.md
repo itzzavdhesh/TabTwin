@@ -47,8 +47,8 @@ Skills live in `.agents/skills/`.
 
 | Skill Name | Use Case |
 | --- | --- |
-| chrome-extensions | Build, debug, and publish Chrome MV3 extensions — manifest, content scripts, service workers, popups, Chrome APIs, Web Store submission. |
-| tailwind-design-system | Build scalable design systems with Tailwind CSS v4 — design tokens, component libraries, responsive patterns. |
+| chrome-extensions | Build and debug Chrome MV3 extensions — manifest, content scripts, service workers, popups, message passing, tabs/storage APIs, Chrome Prompt API. |
+| tailwind-design-system | Design-token/component-library patterns for Tailwind CSS. ⚠️ Config examples are v4; TabTwin uses **Tailwind v3.4.4** — translate CSS-first config to `tailwind.config.js` (see the skill's SKILL.md warning). |
 
 ## Gotchas
 

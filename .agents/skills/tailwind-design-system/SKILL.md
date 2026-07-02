@@ -1,13 +1,35 @@
 ---
 name: tailwind-design-system
-description: Build scalable design systems with Tailwind CSS v4, design tokens, component libraries, and responsive patterns. Use when creating component libraries, implementing design systems, or standardizing UI patterns.
+description: Build scalable design systems with Tailwind CSS design tokens, component libraries, and responsive patterns. NOTE — the CSS-first config examples here are Tailwind v4; TabTwin is on v3.4.4, so translate them to v3 (see the warning below). Use when creating component libraries, implementing design systems, or standardizing UI patterns.
 ---
 
-# Tailwind Design System (v4)
+# Tailwind Design System
 
-Build production-ready design systems with Tailwind CSS v4, including CSS-first configuration, design tokens, component variants, responsive patterns, and accessibility.
+Build production-ready design systems with Tailwind CSS, including design tokens, component variants, responsive patterns, and accessibility.
 
-> **Note**: This skill targets Tailwind CSS v4 (2024+). For v3 projects, refer to the [upgrade guide](https://tailwindcss.com/docs/upgrade-guide).
+> ## ⚠️ TabTwin uses Tailwind CSS v3.4.4 — do NOT copy the v4 config verbatim
+>
+> The `webapp/` and `extension/` packages pin `tailwindcss@^3.4.4` and configure it with
+> `tailwind.config.js` + PostCSS. The CSS-first patterns shown below (`@import "tailwindcss"`,
+> `@theme { … }`, `@custom-variant`) are **Tailwind v4 only** and will **not build** on v3 —
+> PostCSS will throw on the unknown at-rules.
+>
+> When applying this skill to TabTwin, translate v4 → v3:
+>
+> | v4 (shown below, do NOT use as-is) | v3 (use this in TabTwin) |
+> | ---------------------------------- | ------------------------ |
+> | `@import "tailwindcss";` | `@tailwind base; @tailwind components; @tailwind utilities;` |
+> | `@theme { --color-primary: … }` | `theme: { extend: { colors: { primary: … } } }` in `tailwind.config.js` |
+> | `@custom-variant dark (…)` | `darkMode: 'class'` in `tailwind.config.js` |
+> | `@utility name { … }` | `plugin(({ addUtilities }) => …)` in `tailwind.config.js` |
+>
+> The **component patterns** (CVA variants, `cn()` helper, responsive/accessibility guidance) are
+> version-agnostic and apply directly to v3. Only the CSS-first *configuration* differs.
+>
+> If a future TabTwin change upgrades to v4, drop this warning and follow the v4 patterns as written.
+
+The examples below use Tailwind v4 CSS-first configuration. Read the warning above before copying
+any config into TabTwin.
 
 ## When to Use This Skill
 
