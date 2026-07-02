@@ -4,10 +4,11 @@
 
 Ordinarily, fetch requests made by extensions follow normal CORS rules.
 
-To determine if this is sufficient, use `curl` to call the API with a test origin. For example:
+To determine if this is sufficient, use `curl` to send a GET request with a test origin and inspect the
+response headers. For example:
 
 ```bash
-curl -H "Origin: https://example.com" -I "https://api.openweathermap.org/data/2.5/weather?q=London&appid=KEY"
+curl -H "Origin: https://example.com" -D - -o /dev/null "https://api.openweathermap.org/data/2.5/weather?q=London&appid=KEY"
 ```
 
 If the response includes either `*` or `https://example.com` as the value for the `Access-Control-Allow-Origin` header, the API supports CORS.
@@ -39,6 +40,13 @@ const data = await response.json();
 host permissions do **not** exempt content-script fetches from CORS. For cross-origin calls, send a
 message to the service worker and let it perform the fetch (it has the host-permission exemption),
 then relay the result back. See `references/extensions/message-passing.md`.
+
+> **Security:** A content script can be influenced by the hostile page it runs in, so a service worker
+> that blindly fetches whatever URL a message asks for becomes a confused deputy — it lends the
+> extension's host permissions to attacker-chosen requests. Before fetching in the service worker,
+> validate `sender` (e.g. check `sender.id === chrome.runtime.id` and the origin/tab) and match the
+> requested URL against a strict allowlist of expected API endpoints. Never fetch arbitrary URLs
+> received over messaging.
 
 ## Error Handling Pattern
 
