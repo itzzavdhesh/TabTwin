@@ -12,7 +12,8 @@ const DEFAULT_STATE = {
     anthropicApiKey: '',
     allowAgentClick: false,
     allowAgentType: false,
-    allowAgentNavigate: false
+    allowAgentNavigate: false,
+    enableAiOnboarding: false
   }
 };
 
@@ -126,6 +127,7 @@ function Settings({ state, onBack, onSave }) {
         <Toggle label="Allow agent to click" checked={settings.allowAgentClick} onChange={(value) => update('allowAgentClick', value)} />
         <Toggle label="Allow agent to type" checked={settings.allowAgentType} onChange={(value) => update('allowAgentType', value)} />
         <Toggle label="Allow agent to navigate tabs" checked={settings.allowAgentNavigate} onChange={(value) => update('allowAgentNavigate', value)} />
+        <Toggle label="Enable AI onboarding for guests" checked={settings.enableAiOnboarding} onChange={(value) => update('enableAiOnboarding', value)} />
       </div>
       <button className="mt-6 w-full rounded-md bg-slate-950 px-4 py-3 text-sm font-semibold text-white" onClick={() => onSave(settings)} type="button">
         Save Settings
