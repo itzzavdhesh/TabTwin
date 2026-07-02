@@ -2,6 +2,7 @@
 import { createHostWebRTC } from '../lib/webrtc.js';
 import { createCrdtBridge } from '../lib/crdt.js';
 import { runClaudeAgent } from '../lib/aiAgent.js';
+import { generateOnboardingGuidance } from '../onboarding/onboardingService.js';
 
 const API_URL = 'https://tabtwinserver-production.up.railway.app';
 const WS_URL = 'wss://tabtwinserver-production.up.railway.app';
@@ -14,7 +15,8 @@ const state = {
     anthropicApiKey: '',
     allowAgentClick: false,
     allowAgentType: false,
-    allowAgentNavigate: false
+    allowAgentNavigate: false,
+    enableAiOnboarding: false
   },
   socket: null,
   rtc: null,
@@ -118,6 +120,9 @@ async function handleServerEvent({ event, payload = {} }) {
   if (event === 'session:joined') {
     state.guests = payload.guests || mergeGuest(payload.guest);
     addLog(`${payload.guest?.name || 'Guest'} joined`);
+    if (state.settings.enableAiOnboarding) {
+      await triggerOnboardingForGuest(payload.guest?.id);
+    }
     return;
   }
 
@@ -177,6 +182,22 @@ async function runAgent(command) {
   await sendToActiveTab({ type: 'agent:actions', payload: plan });
   sendSocket('agent:command', { command, summary: plan.summary, actions: plan.actions });
   return snapshot();
+}
+
+async function triggerOnboardingForGuest(guestId) {
+  if (!guestId || !state.session) return;
+
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) return;
+
+  const summary = await chrome.tabs.sendMessage(tab.id, { type: 'onboarding:analyze' }).catch(() => null);
+  const guidance = await generateOnboardingGuidance({
+    summary: summary || {},
+    apiKey: state.settings.anthropicApiKey
+  });
+
+  sendSocket('onboarding:guidance', { guestId, guidance, summary, enabled: true });
+  await sendToActiveTab({ type: 'onboarding:highlight', payload: { guidance, summary } }).catch(() => {});
 }
 
 async function collectOpenTabContent() {

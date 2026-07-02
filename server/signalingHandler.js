@@ -75,7 +75,8 @@ export function createSignalingHandler({ sessions }) {
       case 'crdt:update':
       case 'webrtc:offer':
       case 'webrtc:answer':
-      case 'webrtc:ice-candidate': {
+      case 'webrtc:ice-candidate':
+      case 'onboarding:guidance': {
         if (!session) return;
         const target = socket.tabTwin.role === 'host' ? findGuestSocket(session, payload.guestId) : session.hostSocket;
         safeSend(target, { event, payload: withSender(socket, payload) });
