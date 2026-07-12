@@ -73,6 +73,12 @@ npm run dev:web
 
 Open the link the host shares. That is it.
 
+## Session Recording and Playback
+
+The participant currently viewing the guest session page can opt in to session recording from the session UI. When enabled, the guest-side session captures a lightweight timeline of collaboration events that stays isolated from the live WebRTC/WebSocket transport. The current recorder captures session lifecycle events, cursor movement, scroll events, annotation additions, click requests, and typing approvals.
+
+Playback is available in the session UI once a recording has been collected. The current implementation supports play, pause, resume, seek, and timeline review for the captured events. The recording timeline is held in memory for the active session and is exposed through the existing session UI; it is not currently persisted to disk or exported as a standalone file.
+
 ## Environment Variables
 
 | Variable            | Required                                                 | Description                                                                          |

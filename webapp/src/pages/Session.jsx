@@ -1,17 +1,55 @@
 // Hosts the active guest-side TabTwin session surface and bottom controls.
-import React from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import AnnotationLayer from '../components/AnnotationLayer.jsx';
 import ControlBar from '../components/ControlBar.jsx';
 import GhostCursor from '../components/GhostCursor.jsx';
+import PlaybackControls from '../components/PlaybackControls.jsx';
+import RecordingBadge from '../components/RecordingBadge.jsx';
 import SessionStatus from '../components/SessionStatus.jsx';
+import Timeline from '../components/Timeline.jsx';
 import { useCursor } from '../hooks/useCursor.js';
 import { useSession } from '../hooks/useSession.js';
+import { PlaybackEngine } from '../recording/PlaybackEngine.js';
 
 export default function Session({ sessionId }) {
   const params = new URLSearchParams(window.location.search);
   const guestName = params.get('name') || 'Guest';
-  const session = useSession({ sessionId, guestName });
+  const [recordingEnabled, setRecordingEnabled] = useState(false);
+  const [playbackCurrentTime, setPlaybackCurrentTime] = useState(0);
+  const [playbackEvents, setPlaybackEvents] = useState([]);
+  const [playbackState, setPlaybackState] = useState('idle');
+  const playbackEngineRef = useRef(null);
+  const session = useSession({ sessionId, guestName, recordingEnabled });
   const cursor = useCursor({ onMove: session.sendCursorMove });
+
+  useEffect(() => {
+    const engine = new PlaybackEngine();
+    playbackEngineRef.current = engine;
+    engine.setRenderer((event) => {
+      setPlaybackEvents((current) => [...current, event]);
+    });
+    engine.setOnProgress((time) => {
+      setPlaybackCurrentTime(time);
+      setPlaybackState(engine.state);
+    });
+    return () => engine.stop();
+  }, []);
+
+  useEffect(() => {
+    if (!session.recording) {
+      setPlaybackEvents([]);
+      setPlaybackCurrentTime(0);
+      setPlaybackState('idle');
+      return;
+    }
+
+    playbackEngineRef.current?.load(session.recording);
+    setPlaybackEvents([]);
+    setPlaybackCurrentTime(0);
+    setPlaybackState('idle');
+  }, [session.recording]);
+
+  const playbackDuration = useMemo(() => playbackEngineRef.current?.getDuration() ?? 0, [session.recording, playbackCurrentTime]);
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-slate-100" onPointerMove={cursor.handlePointerMove}>
@@ -21,7 +59,10 @@ export default function Session({ sessionId }) {
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Guest session</p>
             <h1 className="text-xl font-bold text-slate-950">Connected as {guestName}</h1>
           </div>
-          <SessionStatus status={session.status} label={session.statusLabel} />
+          <div className="flex items-center gap-3">
+            <RecordingBadge enabled={recordingEnabled} state={playbackState === 'playing' ? 'playback' : recordingEnabled ? 'recording' : 'idle'} />
+            <SessionStatus status={session.status} label={session.statusLabel} />
+          </div>
         </div>
       </div>
 
@@ -36,6 +77,32 @@ export default function Session({ sessionId }) {
             <Permission label="Click" enabled={session.permissions.canClick} />
             <Permission label="Type" enabled={session.permissions.canType} />
           </div>
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-left">
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+              <input checked={recordingEnabled} className="h-4 w-4 rounded border-slate-300" onChange={(event) => {
+                setRecordingEnabled(event.target.checked);
+                session.setRecordingEnabled(event.target.checked);
+              }} type="checkbox" />
+              Enable session recording
+            </label>
+            <p className="text-sm text-slate-500">Recorded timeline stays isolated from live collaboration and is available for playback after the session ends.</p>
+          </div>
+          {session.recording ? (
+            <div className="mt-6 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+              <PlaybackControls currentTime={playbackCurrentTime} duration={playbackDuration} playback={playbackEngineRef.current} recording={session.recording} />
+              <Timeline recording={session.recording} />
+            </div>
+          ) : null}
+          {playbackEvents.length ? (
+            <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4 text-left shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Playback preview</p>
+              <ul className="mt-3 space-y-2 text-sm text-slate-600">
+                {playbackEvents.map((event, index) => (
+                  <li className="rounded-md border border-slate-200 px-3 py-2" key={`${event.id || index}-${index}`}>{event.eventType}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </div>
       </section>
 
