@@ -226,10 +226,15 @@ export function createSessionManager({ clientUrl, redisClient }) {
     }
   }
 
+  // Replace the existing count() function (around line 225-227)
   async function count() {
-    // Count keys matching the session namespace.
-    const keys = await redisClient.keys('tabtwin:session:*');
-    return keys.length;
+    let cursor = '0', total = 0;
+    do {
+      const [next, keys] = await redisClient.scan(cursor, 'MATCH', 'tabtwin:session:*', 'COUNT', 100);
+      total += keys.length;
+      cursor = next;
+    } while (cursor !== '0');
+    return total;
   }
 
   return {
