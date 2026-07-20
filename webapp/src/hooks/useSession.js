@@ -68,9 +68,14 @@ export function useSession({ sessionId, guestName, recordingEnabled = false }) {
       }
 
       if (message.event === 'control:revoke') {
-        recorderRef.current?.capture({ type: 'permission:changed', payload: { reason: 'control-revoked' }, participantId: guestName, timestamp: Date.now() });
-        setPermissions((current) => ({ ...current, canClick: false, canType: false, canNavigate: false }));
-        setStatusLabel('Control revoked');
+        if (message.payload?.reason === 'session-ended') {
+          setStatus('ended');
+          setStatusLabel('Session ended');
+        } else {
+          recorderRef.current?.capture({ type: 'permission:changed', payload: { reason: 'control-revoked' }, participantId: guestName, timestamp: Date.now() });
+          setPermissions((current) => ({ ...current, canClick: false, canType: false, canNavigate: false }));
+          setStatusLabel('Control revoked');
+        }
       }
 
       if (message.event === 'error') {
@@ -84,8 +89,8 @@ export function useSession({ sessionId, guestName, recordingEnabled = false }) {
     });
 
     socket.addEventListener('close', () => {
-      setStatus('offline');
-      setStatusLabel('Disconnected');
+      setStatus((prev) => (prev === 'ended' ? prev : 'offline'));
+      setStatusLabel((prev) => (prev === 'Session ended' ? prev : 'Disconnected'));
     });
 
     return () => socket.close();

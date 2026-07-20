@@ -10,6 +10,7 @@ import Timeline from '../components/Timeline.jsx';
 import { useCursor } from '../hooks/useCursor.js';
 import { useSession } from '../hooks/useSession.js';
 import { PlaybackEngine } from '../recording/PlaybackEngine.js';
+import SessionError from './SessionError.jsx';
 
 export default function Session({ sessionId }) {
   const params = new URLSearchParams(window.location.search);
@@ -50,6 +51,14 @@ export default function Session({ sessionId }) {
   }, [session.recording]);
 
   const playbackDuration = useMemo(() => playbackEngineRef.current?.getDuration() ?? 0, [session.recording, playbackCurrentTime]);
+
+  if (session.status === 'ended' && !session.recording && !recordingEnabled) {
+    return <SessionError type="ended" />;
+  }
+
+  if ((session.status === 'error' || session.status === 'offline') && !session.recording && !recordingEnabled) {
+    return <SessionError type="network" />;
+  }
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-slate-100" onPointerMove={cursor.handlePointerMove}>
