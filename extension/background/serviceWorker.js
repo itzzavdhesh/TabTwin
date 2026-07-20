@@ -3,15 +3,17 @@ import { createHostWebRTC } from '../lib/webrtc.js';
 import { createCrdtBridge } from '../lib/crdt.js';
 import { runClaudeAgent } from '../lib/aiAgent.js';
 
-const API_URL = 'https://tabtwinserver-production.up.railway.app';
-const WS_URL = 'wss://tabtwinserver-production.up.railway.app';
+// Default to localhost for local development.
+// Production: 'https://tabtwinserver-production.up.railway.app'
+const API_URL = 'http://localhost:3001';
+// Production: 'wss://tabtwinserver-production.up.railway.app'
+const WS_URL = 'ws://localhost:3001';
 
 const state = {
   session: null,
   guests: [],
   activityLog: [],
   settings: {
-    anthropicApiKey: '',
     allowAgentClick: false,
     allowAgentType: false,
     allowAgentNavigate: false
@@ -70,17 +72,26 @@ async function handleMessage(message, sender) {
 }
 
 async function startSession() {
-  const response = await fetch(`${API_URL}/api/session/create`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ hostName: 'Host' })
-  });
-  const session = await response.json();
-  state.session = { id: session.session_id, link: session.link };
-  state.guests = [];
-  addLog('Session started');
-  connectSocket();
-  await chrome.storage.local.set({ tabTwinSession: state.session });
+  try {
+    const response = await fetch(`${API_URL}/api/session/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hostName: 'Host' })
+    });
+    if (!response.ok) throw new Error(`Server error: ${response.status}`);
+    const session = await response.json();
+if (!session.session_id || !session.link) {
+  throw new Error('Invalid response from server: missing session_id or link');
+}
+state.session = { id: session.session_id, link: session.link };
+    state.session = { id: session.session_id, link: session.link };
+    state.guests = [];
+    addLog('Session started');
+    connectSocket();
+    await chrome.storage.local.set({ tabTwinSession: state.session });
+  } catch (err) {
+    addLog(`Failed to start session: ${err.message}`);
+  }
   return snapshot();
 }
 
@@ -163,7 +174,8 @@ async function runAgent(command) {
   if (!state.session) return snapshot();
   const tabs = await collectOpenTabContent();
   const plan = await runClaudeAgent({
-    apiKey: state.settings.anthropicApiKey,
+    apiUrl: API_URL,
+    sessionId: state.session.id,
     command,
     tabs,
     permissions: {
