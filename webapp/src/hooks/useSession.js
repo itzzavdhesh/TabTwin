@@ -89,8 +89,8 @@ export function useSession({ sessionId, guestName, recordingEnabled = false }) {
     });
 
     socket.addEventListener('close', () => {
-      setStatus('offline');
-      setStatusLabel('Disconnected');
+      setStatus((prev) => (prev === 'ended' ? prev : 'offline'));
+      setStatusLabel((prev) => (prev === 'Session ended' ? prev : 'Disconnected'));
     });
 
     return () => socket.close();

@@ -52,11 +52,11 @@ export default function Session({ sessionId }) {
 
   const playbackDuration = useMemo(() => playbackEngineRef.current?.getDuration() ?? 0, [session.recording, playbackCurrentTime]);
 
-  if (session.status === 'ended') {
+  if (session.status === 'ended' && !session.recording && !recordingEnabled) {
     return <SessionError type="ended" />;
   }
 
-  if (session.status === 'error' || session.status === 'offline') {
+  if ((session.status === 'error' || session.status === 'offline') && !session.recording && !recordingEnabled) {
     return <SessionError type="network" />;
   }
 
