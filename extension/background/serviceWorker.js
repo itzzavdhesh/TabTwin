@@ -72,6 +72,17 @@ async function handleMessage(message, sender) {
 }
 
 async function startSession() {
+  const response = await fetch(`${API_URL}/api/session/create`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ hostName: 'Host' })
+  });
+  const session = await response.json();
+  state.session = { id: session.session_id, link: session.link, hostToken: session.host_token };
+  state.guests = [];
+  addLog('Session started');
+  connectSocket();
+  await chrome.storage.local.set({ tabTwinSession: state.session });
   try {
     const response = await fetch(`${API_URL}/api/session/create`, {
       method: 'POST',
@@ -97,7 +108,12 @@ state.session = { id: session.session_id, link: session.link };
 
 async function endSession() {
   if (state.session) {
-    await fetch(`${API_URL}/api/session/${state.session.id}`, { method: 'DELETE' }).catch(() => {});
+    await fetch(`${API_URL}/api/session/${state.session.id}`, { 
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${state.session.hostToken}`
+      }
+    }).catch(() => {});
   }
   state.socket?.close();
   state.socket = null;
@@ -116,7 +132,7 @@ function connectSocket() {
   state.rtc = createHostWebRTC({ sendSignal: sendSocket, onDataMessage: handleRealtimeMessage });
 
   state.socket.addEventListener('open', () => {
-    sendSocket('host:connect', { sessionId: state.session.id });
+    sendSocket('host:connect', { sessionId: state.session.id, hostToken: state.session.hostToken });
   });
 
   state.socket.addEventListener('message', async (event) => {
