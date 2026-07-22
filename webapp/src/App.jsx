@@ -1,13 +1,10 @@
 // Routes TabTwin web app pages based on the current browser path.
 import React from 'react';
-import { createRoot } from 'react-dom/client';
 import Landing from './pages/Landing.jsx';
 import Join from './pages/Join.jsx';
 import Session from './pages/Session.jsx';
 import NotFound from './pages/NotFound.jsx';
-import './styles.css';
-
-function App() {
+export default function App() {
   const path = window.location.pathname;
 
   if (path === '/') return <Landing />;
@@ -15,9 +12,3 @@ function App() {
   if (path.startsWith('/session/')) return <Session sessionId={path.split('/').filter(Boolean)[1]} />;
   return <NotFound />;
 }
-
-createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);

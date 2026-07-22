@@ -59,19 +59,32 @@ npm run server
 npm run dev:web
 ```
 
-4. Load the unpacked extension in Chrome from the `extension/` folder.
+4. Build the extension popup.
+
+```bash
+npm run build --workspace extension
+```
+
+5. Load the unpacked extension in Chrome from the `extension/` folder.
 
 ## Host Setup
 
-1. Open `chrome://extensions`.
-2. Enable Developer mode.
-3. Click Load unpacked.
-4. Select the `extension/` folder.
-5. Pin TabTwin, open the popup, and click Start Session.
+1. Build the popup UI first: `npm run build --workspace extension` (this generates `popup-dist/`).
+2. Open `chrome://extensions`.
+3. Enable Developer mode.
+4. Click Load unpacked.
+5. Select the `extension/` folder.
+6. Pin TabTwin, open the popup, and click Start Session.
 
 ## Guest Setup
 
 Open the link the host shares. That is it.
+
+## Session Recording and Playback
+
+The participant currently viewing the guest session page can opt in to session recording from the session UI. When enabled, the guest-side session captures a lightweight timeline of collaboration events that stays isolated from the live WebRTC/WebSocket transport. The current recorder captures session lifecycle events, cursor movement, scroll events, annotation additions, click requests, and typing approvals.
+
+Playback is available in the session UI once a recording has been collected. The current implementation supports play, pause, resume, seek, and timeline review for the captured events. The recording timeline is held in memory for the active session and is exposed through the existing session UI; it is not currently persisted to disk or exported as a standalone file.
 
 ## Environment Variables
 

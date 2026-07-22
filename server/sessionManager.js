@@ -35,6 +35,11 @@ export function createSessionManager({ clientUrl, redisClient }) {
 
   // ---------- helpers ----------
 
+  function _logActivity(data, message) {
+    data.activityLog.unshift({ at: Date.now(), message });
+    if (data.activityLog.length > 20) data.activityLog.length = 20;
+  }
+
   async function _save(session) {
     await redisClient.set(redisKey(session.id), JSON.stringify(session), 'EX', SESSION_TTL_SECONDS);
   }
@@ -138,7 +143,7 @@ export function createSessionManager({ clientUrl, redisClient }) {
     const data = await _load(sessionId);
     if (!data) return null;
 
-    data.activityLog.unshift({ at: Date.now(), message: 'Host connected' });
+    _logActivity(data, 'Host connected');
     await _save(data);
 
     const entry = _socketEntry(sessionId);
@@ -161,7 +166,7 @@ export function createSessionManager({ clientUrl, redisClient }) {
     };
 
     data.guests.push(guestData);
-    data.activityLog.unshift({ at: Date.now(), message: `${name} joined` });
+    _logActivity(data, `${name} joined`);
     await _save(data);
 
     const entry = _socketEntry(sessionId);
@@ -180,7 +185,7 @@ export function createSessionManager({ clientUrl, redisClient }) {
         sockets.hostSocket = null;
         const data = await _load(sessionId);
         if (data) {
-          data.activityLog.unshift({ at: Date.now(), message: 'Host disconnected' });
+          _logActivity(data, 'Host disconnected');
           await _save(data);
         }
         changed = true;
@@ -201,7 +206,7 @@ export function createSessionManager({ clientUrl, redisClient }) {
           // Using the disconnected ID rather than a local-socket allowlist avoids
           // wiping guests whose sockets live on other server instances.
           data.guests = data.guests.filter((g) => !disconnectedIds.has(g.id));
-          data.activityLog.unshift({ at: Date.now(), message: 'Guest disconnected' });
+          _logActivity(data, 'Guest disconnected');
           await _save(data);
         }
 
@@ -224,10 +229,15 @@ export function createSessionManager({ clientUrl, redisClient }) {
     }
   }
 
+  // Replace the existing count() function (around line 225-227)
   async function count() {
-    // Count keys matching the session namespace.
-    const keys = await redisClient.keys('tabtwin:session:*');
-    return keys.length;
+    let cursor = '0', total = 0;
+    do {
+      const [next, keys] = await redisClient.scan(cursor, 'MATCH', 'tabtwin:session:*', 'COUNT', 100);
+      total += keys.length;
+      cursor = next;
+    } while (cursor !== '0');
+    return total;
   }
 
   return {
