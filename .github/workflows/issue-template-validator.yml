@@ -86,8 +86,8 @@ jobs:
 
             function getProgramReviewerMentions(programLabel) {
               const reviewersByProgram = {
-                SSoC26: ['@rrishabk', '@Preetham404', '@joyprakashk'],
-                ELUSOC: ['@rrishabk', '@Preetham404', '@joyprakashk']
+                SSoC26: ['@rrishabk', '@Preetham404', '@joyprakashk', '@vivek0028'],
+                ELUSOC: ['@rrishabk', '@Preetham404', '@joyprakashk', '@vivek0028']
               };
               return [...new Set(reviewersByProgram[programLabel] || [])];
             }

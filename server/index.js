@@ -1,4 +1,5 @@
 // Starts the TabTwin Express API and WebSocket signaling server.
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import http from 'node:http';
@@ -34,7 +35,15 @@ const app = express();
 const server = http.createServer(app);
 const sessions = createSessionManager({ clientUrl: CLIENT_URL, redisClient });
 
-app.use(cors({ origin: true }));
+const allowedOrigins = [
+  CLIENT_URL,
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  /^chrome-extension:\/\//,
+  /^moz-extension:\/\//
+];
+
+app.use(cors({ origin: allowedOrigins }));
 app.use(express.json({ limit: '1mb' }));
 
 /**
@@ -58,6 +67,7 @@ app.post('/api/session/create', asyncHandler(async (req, res) => {
   const session = await sessions.createSession({ hostName });
   res.status(201).json({
     session_id: session.id,
+    host_token: session.hostToken,
     link: session.link,
     permissions: session.permissions
   });
@@ -70,20 +80,99 @@ app.get('/api/session/:id', asyncHandler(async (req, res) => {
     return;
   }
 
-  res.json({
+  const authHeader = req.headers.authorization;
+  const isHost = authHeader && authHeader === `Bearer ${session.hostToken}`;
+
+  const response = {
     exists: true,
     session_id: session.id,
-    guests: session.guests.map((guest) => ({
+    createdAt: session.createdAt
+  };
+
+  if (isHost) {
+    response.guests = session.guests.map((guest) => ({
       id: guest.id,
       name: guest.name,
       color: guest.color,
       permissions: guest.permissions
-    })),
-    createdAt: session.createdAt
+    }));
+  }
+
+  res.json(response);
+}));
+
+app.post('/api/agent/run', asyncHandler(async (req, res) => {
+  const { sessionId, command, tabs } = req.body;
+  
+  if (!sessionId) {
+    return res.status(401).json({ error: 'Session ID is required.' });
+  }
+
+  const session = await sessions.getSession(sessionId);
+  if (!session) {
+    return res.status(401).json({ error: 'Invalid or expired session.' });
+  }
+
+  // Use trusted server-side permissions, mapping them to the format expected by the LLM
+  const permissions = {
+    click: session.permissions.canClick,
+    type: session.permissions.canType,
+    navigate: session.permissions.canNavigate
+  };
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    return res.status(500).json({ error: 'Server missing ANTHROPIC_API_KEY.' });
+  }
+
+  const MODEL = 'claude-sonnet-4-20250514';
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      max_tokens: 1800,
+      system: [
+        'You are TabTwin browser agent planner.',
+        'Respond only with JSON in this shape: {"summary":"...","actions":[{"type":"navigate","tabIndex":0},{"type":"read","tabIndex":1},{"type":"click","selector":"#compose-button"},{"type":"type","selector":"#reply-box","text":"drafted reply"}]}.',
+        'Do not include markdown fences. Respect permissions and omit disallowed actions.'
+      ].join(' '),
+      messages: [
+        {
+          role: 'user',
+          content: JSON.stringify({ command, tabs, permissions })
+        }
+      ]
+    })
   });
+
+  let body;
+  try {
+    body = await response.json();
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to parse upstream response as JSON.' });
+  }
+  
+  res.status(response.status).json(body);
 }));
 
 app.delete('/api/session/:id', asyncHandler(async (req, res) => {
+  const session = await sessions.getSession(req.params.id);
+  if (!session) {
+    res.status(404).json({ ended: false });
+    return;
+  }
+
+  const authHeader = req.headers.authorization;
+  if (!authHeader || authHeader !== `Bearer ${session.hostToken}`) {
+    res.status(403).json({ error: 'Unauthorized' });
+    return;
+  }
+
   const ended = await sessions.endSession(req.params.id);
   res.status(ended ? 200 : 404).json({ ended });
 }));

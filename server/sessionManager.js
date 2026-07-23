@@ -95,9 +95,12 @@ export function createSessionManager({ clientUrl, redisClient }) {
       throw new Error('Failed to generate a unique session ID after maximum attempts.');
     }
 
+    const hostToken = crypto.randomBytes(32).toString('hex');
+
     const session = {
       id,
       hostName,
+      hostToken,
       link: `${clientUrl.replace(/\/$/, '')}/join/${id}`,
       createdAt: new Date().toISOString(),
       // hostSocket is NOT stored in Redis — it lives only in socketStore.
@@ -226,10 +229,15 @@ export function createSessionManager({ clientUrl, redisClient }) {
     }
   }
 
+  // Replace the existing count() function (around line 225-227)
   async function count() {
-    // Count keys matching the session namespace.
-    const keys = await redisClient.keys('tabtwin:session:*');
-    return keys.length;
+    let cursor = '0', total = 0;
+    do {
+      const [next, keys] = await redisClient.scan(cursor, 'MATCH', 'tabtwin:session:*', 'COUNT', 100);
+      total += keys.length;
+      cursor = next;
+    } while (cursor !== '0');
+    return total;
   }
 
   return {

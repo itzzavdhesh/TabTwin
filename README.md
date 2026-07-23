@@ -49,7 +49,7 @@ npm install
 2. Run the signaling server.
 
 ```bash
-cp .env.example .env
+cp .env.example server/.env
 npm run server
 ```
 
@@ -59,15 +59,22 @@ npm run server
 npm run dev:web
 ```
 
-4. Load the unpacked extension in Chrome from the `extension/` folder.
+4. Build the extension popup.
+
+```bash
+npm run build --workspace extension
+```
+
+5. Load the unpacked extension in Chrome from the `extension/` folder.
 
 ## Host Setup
 
-1. Open `chrome://extensions`.
-2. Enable Developer mode.
-3. Click Load unpacked.
-4. Select the `extension/` folder.
-5. Pin TabTwin, open the popup, and click Start Session.
+1. Build the popup UI first: `npm run build --workspace extension` (this generates `popup-dist/`).
+2. Open `chrome://extensions`.
+3. Enable Developer mode.
+4. Click Load unpacked.
+5. Select the `extension/` folder.
+6. Pin TabTwin, open the popup, and click Start Session.
 
 ## Guest Setup
 

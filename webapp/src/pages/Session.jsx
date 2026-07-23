@@ -13,6 +13,7 @@ import { PlaybackEngine } from '../recording/PlaybackEngine.js';
 import OnboardingPanel from '../onboarding/OnboardingPanel.jsx';
 import OnboardingTooltip from '../onboarding/OnboardingTooltip.jsx';
 import { useOnboarding } from '../onboarding/useOnboarding.js';
+import SessionError from './SessionError.jsx';
 
 export default function Session({ sessionId }) {
   const params = new URLSearchParams(window.location.search);
@@ -65,6 +66,13 @@ export default function Session({ sessionId }) {
       panelRef.current.focus();
     }
   }, [dismissed, activeStep]);
+  if (session.status === 'ended' && !session.recording && !recordingEnabled) {
+    return <SessionError type="ended" />;
+  }
+
+  if ((session.status === 'error' || session.status === 'offline') && !session.recording && !recordingEnabled) {
+    return <SessionError type="network" />;
+  }
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-slate-100" onPointerMove={cursor.handlePointerMove}>
