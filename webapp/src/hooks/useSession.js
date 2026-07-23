@@ -25,6 +25,7 @@ export function useSession({ sessionId, guestName, recordingEnabled = false }) {
   const [guest, setGuest] = useState(null);
   const [permissions, setPermissions] = useState(DEFAULT_PERMISSIONS);
   const [recording, setRecording] = useState(null);
+  const [onboarding, setOnboarding] = useState(null);
   const [recordingOn, setRecordingOn] = useState(recordingEnabled);
   const { createOffer, handleSignal, sendData } = useWebRTC({ socketRef, sessionId });
 
@@ -76,6 +77,10 @@ export function useSession({ sessionId, guestName, recordingEnabled = false }) {
           setPermissions((current) => ({ ...current, canClick: false, canType: false, canNavigate: false }));
           setStatusLabel('Control revoked');
         }
+      }
+
+      if (message.event === 'onboarding:guidance') {
+        setOnboarding({ enabled: Boolean(message.payload?.enabled), guidance: message.payload?.guidance || null, summary: message.payload?.summary || null });
       }
 
       if (message.event === 'error') {
@@ -136,6 +141,10 @@ export function useSession({ sessionId, guestName, recordingEnabled = false }) {
     window.location.href = '/';
   }
 
+  function clearOnboarding() {
+    setOnboarding(null);
+  }
+
   return {
     status,
     statusLabel,
@@ -144,10 +153,12 @@ export function useSession({ sessionId, guestName, recordingEnabled = false }) {
     ydoc,
     recording,
     recordingEnabled: recordingOn,
+    onboarding,
     setRecordingEnabled,
     sendCursorMove,
     requestAction,
     addAnnotation,
-    leave
+    leave,
+    clearOnboarding
   };
 }
