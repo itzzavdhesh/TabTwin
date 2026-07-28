@@ -9,7 +9,6 @@ const DEFAULT_STATE = {
   guests: [],
   activityLog: [],
   settings: {
-    anthropicApiKey: '',
     allowAgentClick: false,
     allowAgentType: false,
     allowAgentNavigate: false
@@ -18,6 +17,7 @@ const DEFAULT_STATE = {
 
 export default function Popup() {
   // TODO: Add dark mode to popup UI.
+  const [error, setError] = useState(null);
   const [screen, setScreen] = useState('idle');
   const [state, setState] = useState(DEFAULT_STATE);
   const [busy, setBusy] = useState(false);
@@ -35,14 +35,22 @@ export default function Popup() {
   }
 
   async function startSession() {
-    setBusy(true);
+  setBusy(true);
+  setError(null);
+  try {
     const response = await send('session:start');
-    setBusy(false);
     if (response?.session) {
       setState((current) => ({ ...current, session: response.session, activityLog: response.activityLog || [] }));
       setScreen('active');
+    } else {
+      setError(response?.activityLog?.[0]?.message ?? 'Failed to start session. Is the server running?');
     }
+  } catch (err) {
+    setError(err.message ?? 'Unexpected error. Please try again.');
+  } finally {
+    setBusy(false);
   }
+}
 
   async function endSession() {
     const response = await send('session:end');
@@ -88,6 +96,9 @@ export default function Popup() {
           <button className="mt-5 w-full rounded-md bg-slate-950 px-4 py-3 text-sm font-semibold text-white disabled:bg-slate-400" disabled={busy} onClick={startSession} type="button">
             {busy ? 'Starting...' : 'Start Session'}
           </button>
+          {error && (
+            <p className="mt-3 text-xs text-red-600">{error}</p>
+          )}
           <p className="mt-3 text-xs text-slate-500">Settings include AI keys and agent permissions.</p>
         </section>
       ) : (
@@ -113,15 +124,7 @@ function Settings({ state, onBack, onSave }) {
     <main className="min-h-[540px] bg-slate-50 p-4">
       <button className="text-sm font-semibold text-slate-600" onClick={onBack} type="button">Back</button>
       <h1 className="mt-3 text-2xl font-bold text-slate-950">Settings</h1>
-      <label className="mt-5 block text-sm font-medium text-slate-700" htmlFor="api-key">Claude API key</label>
-      <input
-        id="api-key"
-        className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none ring-teal-500 focus:ring-2"
-        type="password"
-        value={settings.anthropicApiKey}
-        onChange={(event) => update('anthropicApiKey', event.target.value)}
-        placeholder="sk-ant-..."
-      />
+
       <div className="mt-5 space-y-3">
         <Toggle label="Allow agent to click" checked={settings.allowAgentClick} onChange={(value) => update('allowAgentClick', value)} />
         <Toggle label="Allow agent to type" checked={settings.allowAgentType} onChange={(value) => update('allowAgentType', value)} />

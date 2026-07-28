@@ -1,34 +1,20 @@
 // Calls Claude to convert a host command and tab content into a structured browser action plan.
-const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
-const MODEL = 'claude-sonnet-4-20250514';
 
-export async function runClaudeAgent({ apiKey, command, tabs, permissions }) {
-  if (!apiKey) {
+export async function runClaudeAgent({ apiUrl, sessionId, command, tabs, permissions }) {
+  if (!sessionId || !apiUrl) {
     return fallbackPlan(command, tabs);
   }
 
-  const response = await fetch(ANTHROPIC_URL, {
+  const response = await fetch(`${apiUrl}/api/agent/run`, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
+      'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 1800,
-      system: [
-        'You are TabTwin browser agent planner.',
-        'Respond only with JSON in this shape: {"summary":"...","actions":[{"type":"navigate","tabIndex":0},{"type":"read","tabIndex":1},{"type":"click","selector":"#compose-button"},{"type":"type","selector":"#reply-box","text":"drafted reply"}]}.',
-        'Do not include markdown fences. Respect permissions and omit disallowed actions.'
-      ].join(' '),
-      messages: [
-        {
-          role: 'user',
-          content: JSON.stringify({ command, tabs, permissions })
-        }
-      ]
+      sessionId,
+      command,
+      tabs,
+      permissions
     })
   });
 

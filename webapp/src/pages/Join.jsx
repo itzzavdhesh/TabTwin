@@ -1,6 +1,7 @@
 // Lets a guest validate and join a TabTwin session from a shared link.
 import React, { useEffect, useState } from 'react';
 import SessionStatus from '../components/SessionStatus.jsx';
+import SessionError from './SessionError.jsx';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -9,22 +10,30 @@ export default function Join({ sessionId }) {
   const [name, setName] = useState('');
   const [status, setStatus] = useState('checking');
   const [message, setMessage] = useState('Checking session...');
+  const [errorType, setErrorType] = useState(null);
 
   useEffect(() => {
     fetch(`${API_URL}/api/session/${sessionId}`)
       .then((res) => {
-        if (!res.ok) throw new Error('Session unavailable');
+        if (!res.ok) {
+          if (res.status === 404) throw new Error('not-found');
+          throw new Error('network');
+        }
         return res.json();
       })
       .then(() => {
         setStatus('ready');
         setMessage('Session is ready.');
       })
-      .catch(() => {
+      .catch((err) => {
         setStatus('offline');
-        setMessage('This session is invalid or expired.');
+        setErrorType(err.message === 'not-found' ? 'not-found' : 'network');
       });
   }, [sessionId]);
+
+  if (status === 'offline') {
+    return <SessionError type={errorType} />;
+  }
 
   function joinSession(event) {
     event.preventDefault();
@@ -49,6 +58,7 @@ export default function Join({ sessionId }) {
             className="w-full rounded-md border border-slate-300 px-3 py-3 text-slate-950 outline-none ring-teal-500 focus:ring-2"
             placeholder="Maya"
             value={name}
+            maxLength={40}
             onChange={(event) => setName(event.target.value)}
           />
           <button

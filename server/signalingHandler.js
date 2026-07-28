@@ -66,6 +66,11 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
 
     switch (event) {
       case 'host:connect': {
+        if (!session || session.hostToken !== payload.hostToken) {
+          safeSend(socket, { event: 'error', payload: { message: 'Unauthorized or session not found.' } });
+          return;
+        }
+
         const nextSession = await sessions.attachHost(payload.sessionId, socket);
         if (!nextSession) {
           safeSend(socket, { event: 'error', payload: { message: 'Session not found.' } });
@@ -81,7 +86,8 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
       }
 
       case 'session:join': {
-        const joined = await sessions.addGuest(payload.sessionId, socket, { name: payload.name });
+        const safeName = String(payload.name || '').trim().slice(0, 40) || 'Guest';
+        const joined = await sessions.addGuest(payload.sessionId, socket, { name: safeName });
         if (!joined) {
           safeSend(socket, { event: 'error', payload: { message: 'Session not found.' } });
           return;
@@ -121,8 +127,39 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
         return;
       }
 
+      case 'action:request': {
+        if (!session) return;
+
+        // Enforce guest permissions server-side before forwarding to the host.
+        if (socket.tabTwin.role === 'guest') {
+          const guest = session.guests.find((g) => g.id === socket.tabTwin.guestId);
+          const perms = guest?.permissions || {};
+          const actionType = payload.type;
+
+          const permissionMap = {
+            click: perms.canClick,
+            type: perms.canType,
+            scroll: perms.canScroll,
+            navigate: perms.canNavigate,
+            highlight: perms.canHighlight,
+            annotate: perms.canAnnotate
+          };
+
+          if (!(actionType in permissionMap) || !permissionMap[actionType]) {
+            safeSend(socket, {
+              event: 'error',
+              payload: { message: `Permission denied: ${actionType} is not allowed.` }
+            });
+            return;
+          }
+        }
+
+        const target = socket.tabTwin.role === 'host' ? findGuestSocket(session, payload.guestId) : session.hostSocket;
+        safeSend(target, { event, payload: withSender(socket, payload) });
+        return;
+      }
+
       case 'cursor:move':
-      case 'action:request':
       case 'crdt:update':
       case 'webrtc:offer':
       case 'webrtc:answer':
