@@ -39,7 +39,7 @@ flowchart TB
 
 ### Key Security & Boundary Design
 - **Host Sovereignty:** The host remains in full control of their browser tab. Guests and AI agents cannot execute clicks, typing, or navigation without explicit permission or pre-approved rules.
-- **Chrome Manifest V3 (MV3) Sandboxing:** Extension scripts run within Chrome's strict security sandbox. DOM overlays are isolated to prevent cross-site scripting (XSS) or stylesheet collisions.
+- **Chrome Manifest V3 (MV3) Sandboxing:** Extension scripts execute within Chrome's isolated world, preventing direct access to or interference from target page scripts, while DOM overlays use safe DOM construction and scoping to avoid stylesheet collisions.
 - **Signaling vs. Direct P2P:** Where supported, low-latency collaboration data (ghost cursor coordinates, scroll events, annotations) streams over direct **WebRTC Data Channels**, bypassing the server. When direct P2P is unavailable, traffic gracefully falls back to the **WebSocket Signaling Server**.
 
 ---
@@ -83,7 +83,7 @@ sequenceDiagram
     actor Guest as "Guest (Web App)"
 
     Note over Host,Srv: 1. Session Initialization
-    Host->>Srv: POST /api/sessions (Create new session)
+    Host->>Srv: POST /api/session/create (Create new session)
     Srv-->>Host: Session ID & Join URL (Stored in Redis)
 
     Note over Guest,Srv: 2. Guest Join & WebRTC Negotiation
@@ -129,7 +129,7 @@ flowchart LR
     YDoc <--> Redis
 ```
 
-1. **Redis Persistence:** Session metadata (IDs, host tokens, participant rosters, approval settings) is persisted in Redis (`REDIS_URL`). This ensures high availability and horizontal scalability across server instances.
+1. **Redis Persistence:** Session metadata (IDs, host tokens, participant rosters, approval settings) is persisted in Redis (`REDIS_URL`). This enables cross-instance session state sharing and horizontal scaling (note: Redis high availability requires replication, Sentinel, Cluster, or an equivalent managed configuration).
 2. **Yjs State Synchronization:** Distributed state (such as collaborative drawing annotations and shared highlight marks) is synchronized using **Yjs** conflict-free replicated data types (CRDTs).
 3. **Session Recording Engine:** The guest web application contains an optional event recorder that captures an ordered timeline of events (session lifecycle, cursor movements, annotations, and approved actions). This recording is held in memory for immediate playback in the UI.
 
@@ -140,11 +140,11 @@ flowchart LR
 ### 5.1 Security Requirements
 - **Host Permission Gating:** All sensitive browser actions (clicks, form submissions, navigation, keystrokes) require explicit host approval unless the host has enabled automatic trusted-guest mode.
 - **Token-Based Authorization:** Every session generates cryptographically secure, unique join tokens for both host and guests.
-- **CORS & Origin Validation:** The backend server explicitly validates `CLIENT_URL` headers and rejects unauthorized cross-origin WebSocket connection attempts.
+- **CORS & Origin Validation:** The backend server explicitly validates `CLIENT_URL` headers to enforce HTTP CORS restrictions for cross-origin requests.
 
 ### 5.2 Operational Prerequisites
 - **Node.js:** v20.0.0 or higher is required across all workspaces.
-- **Redis Server:** A running Redis 6+ instance accessible via `REDIS_URL` (default: `redis://localhost:6379`).
+- **Redis Server:** A running Redis 6+ instance accessible via `REDIS_URL` is required (e.g., `redis://localhost:6379`).
 - **Environment Configuration:**
   - `PORT`: HTTP and WebSocket server port (default: `3001`).
   - `CLIENT_URL`: Trusted web app URL for CORS and invite link generation (default: `http://localhost:5173`).
