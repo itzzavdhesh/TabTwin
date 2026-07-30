@@ -276,7 +276,7 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
   return { handleConnection };
 }
 
-function publicGuest(guest) {
+export function publicGuest(guest) {
   return {
     id: guest.id,
     name: guest.name,
@@ -285,7 +285,7 @@ function publicGuest(guest) {
   };
 }
 
-function withSender(socket, payload) {
+export function withSender(socket, payload) {
   return {
     ...payload,
     senderRole: socket.tabTwin.role,
@@ -293,11 +293,11 @@ function withSender(socket, payload) {
   };
 }
 
-function findGuestSocket(session, guestId) {
+export function findGuestSocket(session, guestId) {
   return session.guests.find((guest) => guest.id === guestId)?.socket || null;
 }
 
-function broadcastGuests(session, message, guestId = null) {
+export function broadcastGuests(session, message, guestId = null) {
   for (const guest of session.guests) {
     if (!guestId || guest.id === guestId) {
       safeSend(guest.socket, message);
