@@ -93,8 +93,10 @@ sequenceDiagram
     Srv->>Guest: WS: WebRTC SDP Offer
     Guest->>Srv: WS: WebRTC SDP Answer
     Srv->>Host: WS: WebRTC SDP Answer
-    Host->>Guest: ICE Candidate Exchange over WS
-    Guest->>Host: ICE Candidate Exchange over WS
+    Host->>Srv: WS: WebRTC ICE Candidate (Trickle ICE)
+    Srv->>Guest: WS: Relay ICE Candidate
+    Guest->>Srv: WS: WebRTC ICE Candidate (Trickle ICE)
+    Srv->>Host: WS: Relay ICE Candidate
     Note over Host,Guest: WebRTC P2P Data Channel Established
 
     Note over Host,Guest: 3. Low-Latency Collaboration (Direct P2P or WS Fallback)
@@ -141,7 +143,7 @@ flowchart LR
 ### 5.1 Security Requirements
 - **Host Permission Gating:** All sensitive browser actions (clicks, form submissions, navigation, keystrokes) require explicit host approval unless the host has enabled automatic trusted-guest mode.
 - **Token-Based Authorization:** Every session generates cryptographically secure, unique join tokens for both host and guests.
-- **CORS & Origin Validation:** The backend server explicitly validates `CLIENT_URL` headers to enforce HTTP CORS restrictions for cross-origin requests.
+- **CORS & Origin Validation:** The backend server allowlists browser-supplied `Origin` headers against the trusted `CLIENT_URL` configuration and responds with appropriate HTTP CORS headers for cross-origin requests.
 
 ### 5.2 Operational Prerequisites
 - **Node.js:** v20.0.0 or higher is required across all workspaces.
