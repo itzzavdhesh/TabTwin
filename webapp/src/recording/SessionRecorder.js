@@ -23,9 +23,11 @@ export class SessionRecorder {
     }
   }
 
-  stop() {
+  stop(timestamp) {
     if (!this.isRecording) return;
-    this.capture({ type: 'session:end', payload: { endedAt: Date.now() }, participantId: this.participantId, timestamp: Date.now() });
+    const lastTs = this.timeline.length ? this.timeline[this.timeline.length - 1].timestamp : 0;
+    const endTs = timestamp ?? Math.max(Date.now(), lastTs + 1);
+    this.capture({ type: 'session:end', payload: { endedAt: endTs }, participantId: this.participantId, timestamp: endTs });
     this.isRecording = false;
   }
 
