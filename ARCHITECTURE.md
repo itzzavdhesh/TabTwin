@@ -93,8 +93,9 @@ sequenceDiagram
     Srv->>Guest: WS: WebRTC SDP Offer
     Guest->>Srv: WS: WebRTC SDP Answer
     Srv->>Host: WS: WebRTC SDP Answer
-    Host<-->Guest: ICE Candidate Exchange over WS
-    Host<-->Guest: WebRTC P2P Data Channel Established
+    Host->>Guest: ICE Candidate Exchange over WS
+    Guest->>Host: ICE Candidate Exchange over WS
+    Note over Host,Guest: WebRTC P2P Data Channel Established
 
     Note over Host,Guest: 3. Low-Latency Collaboration (Direct P2P or WS Fallback)
     Guest->>Host: Ghost Cursor Coordinates (x, y, viewport)
