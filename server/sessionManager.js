@@ -96,11 +96,12 @@ export function createSessionManager({ clientUrl, redisClient, serverId }) {
     }
 
     const hostToken = crypto.randomBytes(32).toString('hex');
+    const hostTokenHash = crypto.createHash('sha256').update(hostToken).digest('hex');
 
     const session = {
       id,
       hostName,
-      hostToken,
+      hostTokenHash,
       link: `${clientUrl.replace(/\/$/, '')}/join/${id}`,
       createdAt: new Date().toISOString(),
       // hostSocket is NOT stored in Redis — it lives only in socketStore.
@@ -112,7 +113,9 @@ export function createSessionManager({ clientUrl, redisClient, serverId }) {
     // Overwrite the placeholder with the full session object.
     await _save(session);
     socketStore.set(id, { hostSocket: null, guests: [] });
-    return _hydrate(session);
+    const hydrated = _hydrate(session);
+    hydrated.hostToken = hostToken; // inject plaintext token ONLY for the create response
+    return hydrated;
   }
 
   async function getSession(id) {
