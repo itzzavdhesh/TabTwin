@@ -49,51 +49,74 @@ export function useSession({ sessionId, guestName, recordingEnabled = false }) {
   }, [guestName, recordingEnabled, sessionId]);
 
   useEffect(() => {
-    const socket = new WebSocket(WS_URL);
-    socketRef.current = socket;
+    let reconnectAttempts = 0;
+    let reconnectTimeout = null;
+    let intentionalClose = false;
 
-    socket.addEventListener('open', () => {
-      socket.send(JSON.stringify({ event: 'session:join', payload: { sessionId, name: guestName } }));
-    });
+    function connect() {
+      const socket = new WebSocket(WS_URL);
+      socketRef.current = socket;
 
-    socket.addEventListener('message', (event) => {
-      const message = JSON.parse(event.data);
-      if (message.event === 'session:joined') {
-        recorderRef.current?.capture({ type: 'participant:joined', payload: { guest: message.payload.guest }, participantId: guestName, timestamp: Date.now() });
-        setGuest(message.payload.guest);
-        setPermissions(message.payload.permissions || DEFAULT_PERMISSIONS);
-        setStatus('connected');
-        setStatusLabel('Connected');
-        createOffer();
-      }
+      socket.addEventListener('open', () => {
+        reconnectAttempts = 0;
+        socket.send(JSON.stringify({ event: 'session:join', payload: { sessionId, name: guestName } }));
+      });
 
-      if (message.event === 'control:revoke') {
-        if (message.payload?.reason === 'session-ended') {
-          setStatus('ended');
-          setStatusLabel('Session ended');
-        } else {
-          recorderRef.current?.capture({ type: 'permission:changed', payload: { reason: 'control-revoked' }, participantId: guestName, timestamp: Date.now() });
-          setPermissions((current) => ({ ...current, canClick: false, canType: false, canNavigate: false }));
-          setStatusLabel('Control revoked');
+      socket.addEventListener('message', (event) => {
+        const message = JSON.parse(event.data);
+        if (message.event === 'session:joined') {
+          recorderRef.current?.capture({ type: 'participant:joined', payload: { guest: message.payload.guest }, participantId: guestName, timestamp: Date.now() });
+          setGuest(message.payload.guest);
+          setPermissions(message.payload.permissions || DEFAULT_PERMISSIONS);
+          setStatus('connected');
+          setStatusLabel('Connected');
+          createOffer();
         }
-      }
 
-      if (message.event === 'error') {
-        setStatus('error');
-        setStatusLabel(message.payload.message);
-      }
+        if (message.event === 'control:revoke') {
+          if (message.payload?.reason === 'session-ended') {
+            setStatus('ended');
+            setStatusLabel('Session ended');
+          } else {
+            recorderRef.current?.capture({ type: 'permission:changed', payload: { reason: 'control-revoked' }, participantId: guestName, timestamp: Date.now() });
+            setPermissions((current) => ({ ...current, canClick: false, canType: false, canNavigate: false }));
+            setStatusLabel('Control revoked');
+          }
+        }
 
-      if (message.event?.startsWith('webrtc:')) {
-        handleSignal(message);
-      }
-    });
+        if (message.event === 'error') {
+          setStatus('error');
+          setStatusLabel(message.payload.message);
+        }
 
-    socket.addEventListener('close', () => {
-      setStatus((prev) => (prev === 'ended' ? prev : 'offline'));
-      setStatusLabel((prev) => (prev === 'Session ended' ? prev : 'Disconnected'));
-    });
+        if (message.event?.startsWith('webrtc:')) {
+          handleSignal(message);
+        }
+      });
 
-    return () => socket.close();
+      socket.addEventListener('close', () => {
+        if (intentionalClose) return;
+
+        if (reconnectAttempts < 5) {
+          setStatus((prev) => (prev === 'ended' ? prev : 'reconnecting'));
+          setStatusLabel((prev) => (prev === 'Session ended' ? prev : 'Reconnecting...'));
+          const delay = Math.pow(2, reconnectAttempts + 1) * 1000;
+          reconnectAttempts++;
+          reconnectTimeout = setTimeout(connect, delay);
+        } else {
+          setStatus((prev) => (prev === 'ended' ? prev : 'offline'));
+          setStatusLabel((prev) => (prev === 'Session ended' ? prev : 'Connection lost'));
+        }
+      });
+    }
+
+    connect();
+
+    return () => {
+      intentionalClose = true;
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (socketRef.current) socketRef.current.close();
+    };
   }, [createOffer, guestName, handleSignal, sessionId]);
 
   function send(event, payload = {}) {

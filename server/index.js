@@ -92,7 +92,12 @@ app.get('/api/session/:id', asyncHandler(async (req, res) => {
   }
 
   const authHeader = req.headers.authorization;
-  const isHost = authHeader && authHeader === `Bearer ${session.hostToken}`;
+  let isHost = false;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    const hash = crypto.createHash('sha256').update(token).digest('hex');
+    isHost = hash === session.hostTokenHash;
+  }
 
   const response = {
     exists: true,
@@ -179,7 +184,14 @@ app.delete('/api/session/:id', asyncHandler(async (req, res) => {
   }
 
   const authHeader = req.headers.authorization;
-  if (!authHeader || authHeader !== `Bearer ${session.hostToken}`) {
+  let isHost = false;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    const hash = crypto.createHash('sha256').update(token).digest('hex');
+    isHost = hash === session.hostTokenHash;
+  }
+
+  if (!isHost) {
     res.status(403).json({ error: 'Unauthorized' });
     return;
   }

@@ -1,4 +1,5 @@
 // Routes TabTwin WebSocket events between hosts, guests, CRDT peers, and the AI agent bridge.
+import crypto from 'node:crypto';
 import { publicGuests, safeSend } from './sessionManager.js';
 
 export function createSignalingHandler({ sessions, redisClient, redisSub, serverId }) {
@@ -66,7 +67,8 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
 
     switch (event) {
       case 'host:connect': {
-        if (!session || session.hostToken !== payload.hostToken) {
+        const hash = payload.hostToken ? crypto.createHash('sha256').update(payload.hostToken).digest('hex') : null;
+        if (!session || hash !== session.hostTokenHash) {
           safeSend(socket, { event: 'error', payload: { message: 'Unauthorized or session not found.' } });
           return;
         }
