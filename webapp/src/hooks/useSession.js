@@ -3,6 +3,18 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import * as Y from 'yjs';
 import { useWebRTC } from './useWebRTC.js';
 import { SessionRecorder } from '../recording/SessionRecorder.js';
+import {
+  generateHostKeyPair,
+  exportPublicKeyToJWK,
+  importPublicKeyFromJWK,
+  encodeJWKToBase64,
+  decodeBase64ToJWK,
+  deriveSharedSecret,
+  deriveAESKey,
+  wrapEncryptedMessage,
+  unwrapEncryptedMessage,
+  shouldEncryptEvent
+} from '../utils/encryption.js';
 
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3001';
 
@@ -18,6 +30,9 @@ const DEFAULT_PERMISSIONS = {
 export function useSession({ sessionId, guestName, recordingEnabled = false }) {
   const socketRef = useRef(null);
   const recorderRef = useRef(null);
+  const keyPairRef = useRef(null);
+  const hostPublicKeyRef = useRef(null);
+  const aesKeyRef = useRef(null);
   const ydoc = useMemo(() => new Y.Doc(), []);
   const annotations = useMemo(() => ydoc.getArray('annotations'), [ydoc]);
   const [status, setStatus] = useState('connecting');
@@ -49,44 +64,75 @@ export function useSession({ sessionId, guestName, recordingEnabled = false }) {
   }, [guestName, recordingEnabled, sessionId]);
 
   useEffect(() => {
-    let reconnectAttempts = 0;
-    let reconnectTimeout = null;
-    let intentionalClose = false;
+    async function initializeEncryption() {
+      try {
+        // Generate this participant's key pair
+        const keyPair = await generateHostKeyPair();
+        keyPairRef.current = keyPair;
 
-    function connect() {
-      const socket = new WebSocket(WS_URL);
-      socketRef.current = socket;
+        // Export and publish public key in URL fragment
+        const jwkString = await exportPublicKeyToJWK(keyPair.publicKey);
+        const base64PK = encodeJWKToBase64(jwkString);
+        window.location.hash = `pk=${base64PK}`;
 
-      socket.addEventListener('open', () => {
-        reconnectAttempts = 0;
-        socket.send(JSON.stringify({ event: 'session:join', payload: { sessionId, name: guestName } }));
-      });
+        // Try to import host's public key from URL if this is a guest session
+        const hashParams = new URLSearchParams(window.location.hash.slice(1));
+        const hostPKBase64 = hashParams.get('pk');
 
-      socket.addEventListener('message', (event) => {
-        const message = JSON.parse(event.data);
-        if (message.event === 'session:joined') {
-          recorderRef.current?.capture({ type: 'participant:joined', payload: { guest: message.payload.guest }, participantId: guestName, timestamp: Date.now() });
-          setGuest(message.payload.guest);
-          setPermissions(message.payload.permissions || DEFAULT_PERMISSIONS);
-          setStatus('connected');
-          setStatusLabel('Connected');
-          createOffer();
+        if (hostPKBase64) {
+          const hostJWK = decodeBase64ToJWK(hostPKBase64);
+          hostPublicKeyRef.current = await importPublicKeyFromJWK(hostJWK);
+
+          // Derive shared secret and AES key
+          const sharedSecret = await deriveSharedSecret(hostPublicKeyRef.current, keyPair.privateKey);
+          aesKeyRef.current = await deriveAESKey(sharedSecret);
         }
+      } catch (err) {
+        console.error('Encryption initialization failed:', err);
+      }
+    }
 
-        if (message.event === 'control:revoke') {
-          if (message.payload?.reason === 'session-ended') {
-            setStatus('ended');
-            setStatusLabel('Session ended');
-          } else {
-            recorderRef.current?.capture({ type: 'permission:changed', payload: { reason: 'control-revoked' }, participantId: guestName, timestamp: Date.now() });
-            setPermissions((current) => ({ ...current, canClick: false, canType: false, canNavigate: false }));
-            setStatusLabel('Control revoked');
-          }
+    initializeEncryption();
+  }, []);
+
+  useEffect(() => {
+    const socket = new WebSocket(WS_URL);
+    socketRef.current = socket;
+
+    socket.addEventListener('open', () => {
+      socket.send(JSON.stringify({ event: 'session:join', payload: { sessionId, name: guestName } }));
+    });
+
+    socket.addEventListener('message', async (event) => {
+      let message = JSON.parse(event.data);
+
+      // Decrypt message if it's encrypted
+      if (message.type === 'encrypted' && aesKeyRef.current) {
+        try {
+          message = await unwrapEncryptedMessage(message, aesKeyRef.current);
+        } catch (err) {
+          console.error('Message decryption failed:', err);
+          return;
         }
+      }
 
-        if (message.event === 'error') {
-          setStatus('error');
-          setStatusLabel(message.payload.message);
+      if (message.event === 'session:joined') {
+        recorderRef.current?.capture({ type: 'participant:joined', payload: { guest: message.payload.guest }, participantId: guestName, timestamp: Date.now() });
+        setGuest(message.payload.guest);
+        setPermissions(message.payload.permissions || DEFAULT_PERMISSIONS);
+        setStatus('connected');
+        setStatusLabel('Connected');
+        createOffer();
+      }
+
+      if (message.event === 'control:revoke') {
+        if (message.payload?.reason === 'session-ended') {
+          setStatus('ended');
+          setStatusLabel('Session ended');
+        } else {
+          recorderRef.current?.capture({ type: 'permission:changed', payload: { reason: 'control-revoked' }, participantId: guestName, timestamp: Date.now() });
+          setPermissions((current) => ({ ...current, canClick: false, canType: false, canNavigate: false }));
+          setStatusLabel('Control revoked');
         }
 
         if (message.event?.startsWith('webrtc:')) {
@@ -119,10 +165,23 @@ export function useSession({ sessionId, guestName, recordingEnabled = false }) {
     };
   }, [createOffer, guestName, handleSignal, sessionId]);
 
-  function send(event, payload = {}) {
+  async function send(event, payload = {}) {
     const socket = socketRef.current;
     if (!socket || socket.readyState !== WebSocket.OPEN) return;
-    socket.send(JSON.stringify({ event, payload: { sessionId, ...payload } }));
+
+    let message = { event, payload: { sessionId, ...payload } };
+
+    // Encrypt message if it should be encrypted and we have an encryption key
+    if (shouldEncryptEvent(event) && aesKeyRef.current) {
+      try {
+        message = await wrapEncryptedMessage(message, aesKeyRef.current);
+      } catch (err) {
+        console.error('Message encryption failed:', err);
+        return;
+      }
+    }
+
+    socket.send(JSON.stringify(message));
   }
 
   function captureEvent(type, payload) {
@@ -131,20 +190,20 @@ export function useSession({ sessionId, guestName, recordingEnabled = false }) {
 
   function sendCursorMove(position) {
     captureEvent('cursor:move', position);
-    send('cursor:move', position);
+    send('cursor:move', position).catch(err => console.error('Failed to send cursor move:', err));
     sendData({ event: 'cursor:move', payload: position });
   }
 
   function requestAction(action) {
     captureEvent('action:request', action);
-    send('action:request', action);
+    send('action:request', action).catch(err => console.error('Failed to send action request:', err));
     sendData({ event: 'action:request', payload: action });
   }
 
   function addAnnotation(annotation) {
     annotations.push([annotation]);
     captureEvent('annotation:add', { annotation });
-    send('crdt:update', { annotation });
+    send('crdt:update', { annotation }).catch(err => console.error('Failed to send annotation:', err));
   }
 
   function setRecordingEnabled(enabled) {
