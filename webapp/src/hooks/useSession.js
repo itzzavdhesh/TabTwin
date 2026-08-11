@@ -134,24 +134,35 @@ export function useSession({ sessionId, guestName, recordingEnabled = false }) {
           setPermissions((current) => ({ ...current, canClick: false, canType: false, canNavigate: false }));
           setStatusLabel('Control revoked');
         }
-      }
 
-      if (message.event === 'error') {
-        setStatus('error');
-        setStatusLabel(message.payload.message);
-      }
+        if (message.event?.startsWith('webrtc:')) {
+          handleSignal(message);
+        }
+      });
 
-      if (message.event?.startsWith('webrtc:')) {
-        handleSignal(message);
-      }
-    });
+      socket.addEventListener('close', () => {
+        if (intentionalClose) return;
 
-    socket.addEventListener('close', () => {
-      setStatus((prev) => (prev === 'ended' ? prev : 'offline'));
-      setStatusLabel((prev) => (prev === 'Session ended' ? prev : 'Disconnected'));
-    });
+        if (reconnectAttempts < 5) {
+          setStatus((prev) => (prev === 'ended' ? prev : 'reconnecting'));
+          setStatusLabel((prev) => (prev === 'Session ended' ? prev : 'Reconnecting...'));
+          const delay = Math.pow(2, reconnectAttempts + 1) * 1000;
+          reconnectAttempts++;
+          reconnectTimeout = setTimeout(connect, delay);
+        } else {
+          setStatus((prev) => (prev === 'ended' ? prev : 'offline'));
+          setStatusLabel((prev) => (prev === 'Session ended' ? prev : 'Connection lost'));
+        }
+      });
+    }
 
-    return () => socket.close();
+    connect();
+
+    return () => {
+      intentionalClose = true;
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (socketRef.current) socketRef.current.close();
+    };
   }, [createOffer, guestName, handleSignal, sessionId]);
 
   async function send(event, payload = {}) {
