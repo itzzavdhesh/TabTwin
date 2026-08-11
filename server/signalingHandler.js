@@ -165,7 +165,8 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
       case 'crdt:update':
       case 'webrtc:offer':
       case 'webrtc:answer':
-      case 'webrtc:ice-candidate': {
+      case 'webrtc:ice-candidate':
+      case 'onboarding:guidance': {
         if (!session) return;
         const isHost = socket.tabTwin.role === 'host';
         const targetGuestId = payload.guestId;

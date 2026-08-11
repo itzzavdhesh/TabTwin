@@ -10,6 +10,9 @@ import Timeline from '../components/Timeline.jsx';
 import { useCursor } from '../hooks/useCursor.js';
 import { useSession } from '../hooks/useSession.js';
 import { PlaybackEngine } from '../recording/PlaybackEngine.js';
+import OnboardingPanel from '../onboarding/OnboardingPanel.jsx';
+import OnboardingTooltip from '../onboarding/OnboardingTooltip.jsx';
+import { useOnboarding } from '../onboarding/useOnboarding.js';
 import SessionError from './SessionError.jsx';
 
 export default function Session({ sessionId }) {
@@ -20,8 +23,14 @@ export default function Session({ sessionId }) {
   const [playbackEvents, setPlaybackEvents] = useState([]);
   const [playbackState, setPlaybackState] = useState('idle');
   const playbackEngineRef = useRef(null);
+  const panelRef = useRef(null);
   const session = useSession({ sessionId, guestName, recordingEnabled });
   const cursor = useCursor({ onMove: session.sendCursorMove });
+  const { steps, activeStep, currentStep, dismissed, next, previous, skip, finish } = useOnboarding({
+    enabled: Boolean(session.onboarding?.enabled && session.onboarding?.guidance),
+    guidance: session.onboarding?.guidance,
+    onFinish: session.clearOnboarding
+  });
 
   useEffect(() => {
     const engine = new PlaybackEngine();
@@ -52,6 +61,11 @@ export default function Session({ sessionId }) {
 
   const playbackDuration = useMemo(() => playbackEngineRef.current?.getDuration() ?? 0, [session.recording, playbackCurrentTime]);
 
+  useEffect(() => {
+    if (!dismissed && panelRef.current) {
+      panelRef.current.focus();
+    }
+  }, [dismissed, activeStep]);
   if (session.status === 'ended' && !session.recording && !recordingEnabled) {
     return <SessionError type="ended" />;
   }
@@ -118,6 +132,26 @@ export default function Session({ sessionId }) {
       <GhostCursor x={cursor.position.x} y={cursor.position.y} name={guestName} color={session.guest?.color || '#2563eb'} />
       <AnnotationLayer session={session} />
       <ControlBar session={session} cursor={cursor.position} />
+      {!dismissed && currentStep ? (
+        <>
+          <OnboardingTooltip body={currentStep.body} onClose={skip} targetSelector="main" title={currentStep.title} />
+          <div ref={panelRef} tabIndex={-1}>
+            <OnboardingPanel
+              body={currentStep.body}
+              canGoBack={activeStep > 0}
+              canGoNext={activeStep < steps.length - 1}
+              currentStep={activeStep}
+              onClose={skip}
+              onFinish={finish}
+              onNext={next}
+              onPrevious={previous}
+              onSkip={skip}
+              title={currentStep.title}
+              totalSteps={steps.length}
+            />
+          </div>
+        </>
+      ) : null}
     </main>
   );
 }
