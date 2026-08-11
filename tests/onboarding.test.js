@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { analyzePageStructure, createFallbackOnboarding } from '../extension/onboarding/pageAnalyzer.js';
+import {
+  analyzePageStructure,
+  createFallbackOnboarding,
+} from '../extension/onboarding/pageAnalyzer.js';
 import { createOnboardingSteps } from '../webapp/src/onboarding/useOnboarding.js';
 
 test('analyzePageStructure extracts visible structure without reading sensitive values', () => {
@@ -8,25 +11,74 @@ test('analyzePageStructure extracts visible structure without reading sensitive 
     title: 'Customer Dashboard',
     querySelectorAll(selector) {
       if (selector === 'nav, [role="navigation"]') {
-        return [{ textContent: 'Overview', tagName: 'A', hidden: false, getAttribute: () => null }];
+        return [
+          {
+            textContent: 'Overview',
+            tagName: 'A',
+            hidden: false,
+            getAttribute: () => null,
+          },
+        ];
       }
-      if (selector === 'button, [role="button"], input[type="button"], input[type="submit"]') {
-        return [{ textContent: 'Create report', tagName: 'BUTTON', hidden: false, getAttribute: () => null }];
+      if (
+        selector ===
+        'button, [role="button"], input[type="button"], input[type="submit"]'
+      ) {
+        return [
+          {
+            textContent: 'Create report',
+            tagName: 'BUTTON',
+            hidden: false,
+            getAttribute: () => null,
+          },
+        ];
       }
       if (selector === 'form') {
-        return [{ textContent: 'Search projects', tagName: 'FORM', hidden: false, getAttribute: () => null }];
+        return [
+          {
+            textContent: 'Search projects',
+            tagName: 'FORM',
+            hidden: false,
+            getAttribute: () => null,
+          },
+        ];
       }
       if (selector === 'h1, h2, h3') {
-        return [{ textContent: 'Projects', tagName: 'H2', hidden: false, getAttribute: () => null }];
+        return [
+          {
+            textContent: 'Projects',
+            tagName: 'H2',
+            hidden: false,
+            getAttribute: () => null,
+          },
+        ];
       }
       if (selector === 'main, [role="main"]') {
-        return [{ textContent: 'Main dashboard content', tagName: 'MAIN', hidden: false, getAttribute: () => null }];
+        return [
+          {
+            textContent: 'Main dashboard content',
+            tagName: 'MAIN',
+            hidden: false,
+            getAttribute: () => null,
+          },
+        ];
       }
-      if (selector === 'input:not([type="hidden"]):not([type="password"]), textarea, [contenteditable="true"]') {
-        return [{ textContent: '', tagName: 'INPUT', hidden: false, value: 'secret', getAttribute: () => null }];
+      if (
+        selector ===
+        'input:not([type="hidden"]):not([type="password"]), textarea, [contenteditable="true"]'
+      ) {
+        return [
+          {
+            textContent: '',
+            tagName: 'INPUT',
+            hidden: false,
+            value: 'secret',
+            getAttribute: () => null,
+          },
+        ];
       }
       return [];
-    }
+    },
   };
 
   const summary = analyzePageStructure(root);
@@ -46,7 +98,7 @@ test('createOnboardingSteps falls back gracefully when guidance is empty', () =>
     pageOverview: '',
     importantRegions: [],
     recommendedActions: [],
-    walkthrough: ''
+    walkthrough: '',
   });
 
   assert.equal(steps[0].title, 'Welcome');

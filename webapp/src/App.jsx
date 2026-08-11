@@ -8,7 +8,9 @@ export default function App() {
   const path = window.location.pathname;
 
   if (path === '/') return <Landing />;
-  if (path.startsWith('/join/')) return <Join sessionId={path.split('/').filter(Boolean)[1]} />;
-  if (path.startsWith('/session/')) return <Session sessionId={path.split('/').filter(Boolean)[1]} />;
+  if (path.startsWith('/join/'))
+    return <Join sessionId={path.split('/').filter(Boolean)[1]} />;
+  if (path.startsWith('/session/'))
+    return <Session sessionId={path.split('/').filter(Boolean)[1]} />;
   return <NotFound />;
 }

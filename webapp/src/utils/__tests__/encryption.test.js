@@ -13,7 +13,7 @@ import {
   wrapEncryptedMessage,
   unwrapEncryptedMessage,
   isEncryptionEnabled,
-  shouldEncryptEvent
+  shouldEncryptEvent,
 } from '../encryption.js';
 
 describe('Encryption Module', () => {
@@ -54,20 +54,32 @@ describe('Encryption Module', () => {
 
   describe('Shared Secret Derivation', () => {
     it('should derive a shared secret from two key pairs', async () => {
-      const secret1 = await deriveSharedSecret(hostKeyPair.publicKey, joinerKeyPair.privateKey);
+      const secret1 = await deriveSharedSecret(
+        hostKeyPair.publicKey,
+        joinerKeyPair.privateKey,
+      );
       expect(secret1).toBeInstanceOf(ArrayBuffer);
       expect(secret1.byteLength).toBe(32); // 256 bits
     });
 
     it('should produce the same shared secret on both sides', async () => {
-      const secret1 = await deriveSharedSecret(hostKeyPair.publicKey, joinerKeyPair.privateKey);
-      const secret2 = await deriveSharedSecret(joinerKeyPair.publicKey, hostKeyPair.privateKey);
+      const secret1 = await deriveSharedSecret(
+        hostKeyPair.publicKey,
+        joinerKeyPair.privateKey,
+      );
+      const secret2 = await deriveSharedSecret(
+        joinerKeyPair.publicKey,
+        hostKeyPair.privateKey,
+      );
 
       expect(new Uint8Array(secret1)).toEqual(new Uint8Array(secret2));
     });
 
     it('should derive an AES key from shared secret', async () => {
-      const secret = await deriveSharedSecret(hostKeyPair.publicKey, joinerKeyPair.privateKey);
+      const secret = await deriveSharedSecret(
+        hostKeyPair.publicKey,
+        joinerKeyPair.privateKey,
+      );
       const key = await deriveAESKey(secret);
       expect(key).toBeDefined();
       expect(key.type).toBe('secret');
@@ -90,7 +102,10 @@ describe('Encryption Module', () => {
 
   describe('Message Encryption and Decryption', () => {
     beforeEach(async () => {
-      const secret = await deriveSharedSecret(hostKeyPair.publicKey, joinerKeyPair.privateKey);
+      const secret = await deriveSharedSecret(
+        hostKeyPair.publicKey,
+        joinerKeyPair.privateKey,
+      );
       aesKey = await deriveAESKey(secret);
     });
 
@@ -115,7 +130,7 @@ describe('Encryption Module', () => {
     it('should handle complex message structures', async () => {
       const message = {
         event: 'cursor:move',
-        payload: { x: 100, y: 200, timestamp: Date.now() }
+        payload: { x: 100, y: 200, timestamp: Date.now() },
       };
       const encrypted = await encryptMessage(message, aesKey);
       const decrypted = await decryptMessage(encrypted, aesKey);
@@ -129,7 +144,7 @@ describe('Encryption Module', () => {
 
       const wrongSecret = await deriveSharedSecret(
         joinerKeyPair.publicKey,
-        joinerKeyPair.privateKey
+        joinerKeyPair.privateKey,
       );
       const wrongKey = await deriveAESKey(wrongSecret);
 
@@ -148,7 +163,10 @@ describe('Encryption Module', () => {
 
   describe('Message Wrapping and Unwrapping', () => {
     beforeEach(async () => {
-      const secret = await deriveSharedSecret(hostKeyPair.publicKey, joinerKeyPair.privateKey);
+      const secret = await deriveSharedSecret(
+        hostKeyPair.publicKey,
+        joinerKeyPair.privateKey,
+      );
       aesKey = await deriveAESKey(secret);
     });
 
@@ -201,7 +219,10 @@ describe('Encryption Module', () => {
 
   describe('Round-trip Encryption', () => {
     beforeEach(async () => {
-      const secret = await deriveSharedSecret(hostKeyPair.publicKey, joinerKeyPair.privateKey);
+      const secret = await deriveSharedSecret(
+        hostKeyPair.publicKey,
+        joinerKeyPair.privateKey,
+      );
       aesKey = await deriveAESKey(secret);
     });
 
@@ -209,7 +230,7 @@ describe('Encryption Module', () => {
       const messages = [
         { event: 'cursor:move', payload: { x: 10, y: 20 } },
         { event: 'cursor:move', payload: { x: 30, y: 40 } },
-        { event: 'cursor:move', payload: { x: 50, y: 60 } }
+        { event: 'cursor:move', payload: { x: 50, y: 60 } },
       ];
 
       for (const msg of messages) {

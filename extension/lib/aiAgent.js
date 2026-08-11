@@ -1,6 +1,12 @@
 // Calls Claude to convert a host command and tab content into a structured browser action plan.
 
-export async function runClaudeAgent({ apiUrl, sessionId, command, tabs, permissions }) {
+export async function runClaudeAgent({
+  apiUrl,
+  sessionId,
+  command,
+  tabs,
+  permissions,
+}) {
   if (!sessionId || !apiUrl) {
     return fallbackPlan(command, tabs);
   }
@@ -8,7 +14,7 @@ export async function runClaudeAgent({ apiUrl, sessionId, command, tabs, permiss
   const response = await fetch(`${apiUrl}/api/agent/run`, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
     },
     body: JSON.stringify({
       model: MODEL,
@@ -17,15 +23,15 @@ export async function runClaudeAgent({ apiUrl, sessionId, command, tabs, permiss
         'You are TabTwin browser agent planner.',
         'Respond only with JSON in this shape: {"summary":"...","actions":[{"type":"navigate","url":"...","confidence":0.95},{"type":"read","tabIndex":1,"confidence":0.99},{"type":"click","selector":"#compose-button","confidence":0.55},{"type":"type","selector":"#reply-box","text":"drafted reply","confidence":0.85}]}.',
         'Do not include markdown fences. Respect permissions and omit disallowed actions.',
-        'Each action MUST include a "confidence" field, which is a decimal number between 0.0 and 1.0.'
+        'Each action MUST include a "confidence" field, which is a decimal number between 0.0 and 1.0.',
       ].join(' '),
       messages: [
         {
           role: 'user',
-          content: JSON.stringify({ command, tabs, permissions })
-        }
-      ]
-    })
+          content: JSON.stringify({ command, tabs, permissions }),
+        },
+      ],
+    }),
   });
 
   if (!response.ok) {
@@ -55,8 +61,9 @@ function sanitizePlan(plan, permissions) {
       })
       .map((action) => ({
         ...action,
-        confidence: typeof action.confidence === 'number' ? action.confidence : 0.8
-      }))
+        confidence:
+          typeof action.confidence === 'number' ? action.confidence : 0.8,
+      })),
   };
 }
 
@@ -66,8 +73,8 @@ function fallbackPlan(command, tabs, reason = 'No Claude API key configured.') {
     actions: tabs.slice(0, 3).map((_tab, index) => ({
       type: 'read',
       tabIndex: index,
-      confidence: 0.9
-    }))
+      confidence: 0.9,
+    })),
   };
 }
 

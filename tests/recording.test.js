@@ -8,12 +8,42 @@ test('SessionRecorder compresses and orders collaboration events', () => {
   const recorder = new SessionRecorder({ enabled: true });
   recorder.start();
 
-  recorder.capture({ type: 'cursor:move', payload: { x: 5, y: 8 }, participantId: 'guest-1', timestamp: now + 10 });
-  recorder.capture({ type: 'cursor:move', payload: { x: 5, y: 8 }, participantId: 'guest-1', timestamp: now + 20 });
-  recorder.capture({ type: 'cursor:move', payload: { x: 9, y: 8 }, participantId: 'guest-1', timestamp: now + 30 });
-  recorder.capture({ type: 'scroll', payload: { x: 0, y: 40 }, participantId: 'guest-1', timestamp: now + 100 });
-  recorder.capture({ type: 'scroll', payload: { x: 0, y: 40 }, participantId: 'guest-1', timestamp: now + 120 });
-  recorder.capture({ type: 'action:request', payload: { type: 'click', x: 10, y: 20 }, participantId: 'guest-2', timestamp: now + 200 });
+  recorder.capture({
+    type: 'cursor:move',
+    payload: { x: 5, y: 8 },
+    participantId: 'guest-1',
+    timestamp: now + 10,
+  });
+  recorder.capture({
+    type: 'cursor:move',
+    payload: { x: 5, y: 8 },
+    participantId: 'guest-1',
+    timestamp: now + 20,
+  });
+  recorder.capture({
+    type: 'cursor:move',
+    payload: { x: 9, y: 8 },
+    participantId: 'guest-1',
+    timestamp: now + 30,
+  });
+  recorder.capture({
+    type: 'scroll',
+    payload: { x: 0, y: 40 },
+    participantId: 'guest-1',
+    timestamp: now + 100,
+  });
+  recorder.capture({
+    type: 'scroll',
+    payload: { x: 0, y: 40 },
+    participantId: 'guest-1',
+    timestamp: now + 120,
+  });
+  recorder.capture({
+    type: 'action:request',
+    payload: { type: 'click', x: 10, y: 20 },
+    participantId: 'guest-2',
+    timestamp: now + 200,
+  });
 
   recorder.stop();
   const timeline = recorder.exportTimeline();
@@ -33,7 +63,12 @@ test('SessionRecorder exports timeline after recording is disabled', () => {
   const now = Date.now();
   const recorder = new SessionRecorder({ enabled: true });
   recorder.start();
-  recorder.capture({ type: 'cursor:move', payload: { x: 1, y: 2 }, participantId: 'guest-1', timestamp: now + 10 });
+  recorder.capture({
+    type: 'cursor:move',
+    payload: { x: 1, y: 2 },
+    participantId: 'guest-1',
+    timestamp: now + 10,
+  });
   recorder.stop();
 
   recorder.enabled = false;
@@ -53,7 +88,12 @@ test('SessionRecorder ignores malformed events without throwing', () => {
   assert.equal(recorder.capture(null), null);
   assert.equal(recorder.capture(undefined), null);
   assert.equal(recorder.capture({ payload: { x: 1 } }), null);
-  const validEvent = recorder.capture({ type: 'cursor:move', payload: { x: 2, y: 3 }, participantId: 'guest-1', timestamp: now + 10 });
+  const validEvent = recorder.capture({
+    type: 'cursor:move',
+    payload: { x: 2, y: 3 },
+    participantId: 'guest-1',
+    timestamp: now + 10,
+  });
   assert.ok(validEvent);
   assert.equal(validEvent.eventType, 'cursor:move');
 });
@@ -63,9 +103,23 @@ test('PlaybackEngine uses relative timestamps and tracks its cursor', () => {
   const recording = {
     sessionId: 'demo',
     events: [
-      { id: 'e1', timestamp: 1000, relativeTimestamp: 0, eventType: 'cursor:move', participantId: 'guest-1', payload: { x: 1, y: 1 } },
-      { id: 'e2', timestamp: 1200, relativeTimestamp: 200, eventType: 'scroll', participantId: 'guest-1', payload: { x: 0, y: 12 } }
-    ]
+      {
+        id: 'e1',
+        timestamp: 1000,
+        relativeTimestamp: 0,
+        eventType: 'cursor:move',
+        participantId: 'guest-1',
+        payload: { x: 1, y: 1 },
+      },
+      {
+        id: 'e2',
+        timestamp: 1200,
+        relativeTimestamp: 200,
+        eventType: 'scroll',
+        participantId: 'guest-1',
+        payload: { x: 0, y: 12 },
+      },
+    ],
   };
 
   engine.load(recording);

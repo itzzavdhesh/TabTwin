@@ -17,7 +17,10 @@ export default function AnnotationLayer({ session }) {
       className="fixed right-4 top-24 z-30 hidden w-72 rounded-lg border border-slate-200 bg-white p-4 shadow-sm md:block"
       onSubmit={submitAnnotation}
     >
-      <label className="text-sm font-semibold text-slate-800" htmlFor="annotation-note">
+      <label
+        className="text-sm font-semibold text-slate-800"
+        htmlFor="annotation-note"
+      >
         Annotation
       </label>
       <textarea
@@ -34,7 +37,9 @@ export default function AnnotationLayer({ session }) {
       >
         Add Note
       </button>
-      <p className="mt-2 text-xs text-slate-500">Session notes sync live with the host.</p>
+      <p className="mt-2 text-xs text-slate-500">
+        Session notes sync live with the host.
+      </p>
     </form>
   );
 }

@@ -11,10 +11,10 @@ export async function generateHostKeyPair() {
   const keyPair = await crypto.subtle.generateKey(
     {
       name: 'ECDH',
-      namedCurve: 'P-256'
+      namedCurve: 'P-256',
     },
     false, // extractable: false for security
-    ['deriveKey', 'deriveBits']
+    ['deriveKey', 'deriveBits'],
   );
 
   return keyPair;
@@ -34,10 +34,10 @@ export async function importPublicKeyFromJWK(jwkString) {
     jwk,
     {
       name: 'ECDH',
-      namedCurve: 'P-256'
+      namedCurve: 'P-256',
     },
     false,
-    []
+    [],
   );
 }
 
@@ -56,22 +56,19 @@ export async function deriveSharedSecret(hostPublicKey, joinerPrivateKey) {
   return await crypto.subtle.deriveBits(
     {
       name: 'ECDH',
-      public: hostPublicKey
+      public: hostPublicKey,
     },
     joinerPrivateKey,
-    KEY_LENGTH
+    KEY_LENGTH,
   );
 }
 
 // Derive AES-GCM key from shared secret
 export async function deriveAESKey(sharedSecret) {
-  return await crypto.subtle.importKey(
-    'raw',
-    sharedSecret,
-    'AES-GCM',
-    false,
-    ['encrypt', 'decrypt']
-  );
+  return await crypto.subtle.importKey('raw', sharedSecret, 'AES-GCM', false, [
+    'encrypt',
+    'decrypt',
+  ]);
 }
 
 // Generate random IV for encryption
@@ -88,30 +85,32 @@ export async function encryptMessage(message, aesKey) {
   const ciphertext = await crypto.subtle.encrypt(
     {
       name: ALGORITHM,
-      iv: iv
+      iv: iv,
     },
     aesKey,
-    data
+    data,
   );
 
   return {
     iv: btoa(String.fromCharCode(...new Uint8Array(iv))),
-    ciphertext: btoa(String.fromCharCode(...new Uint8Array(ciphertext)))
+    ciphertext: btoa(String.fromCharCode(...new Uint8Array(ciphertext))),
   };
 }
 
 // Decrypt message with AES-GCM
 export async function decryptMessage(encryptedMessage, aesKey) {
-  const iv = Uint8Array.from(atob(encryptedMessage.iv), c => c.charCodeAt(0));
-  const ciphertext = Uint8Array.from(atob(encryptedMessage.ciphertext), c => c.charCodeAt(0));
+  const iv = Uint8Array.from(atob(encryptedMessage.iv), (c) => c.charCodeAt(0));
+  const ciphertext = Uint8Array.from(atob(encryptedMessage.ciphertext), (c) =>
+    c.charCodeAt(0),
+  );
 
   const plaintext = await crypto.subtle.decrypt(
     {
       name: ALGORITHM,
-      iv: iv
+      iv: iv,
     },
     aesKey,
-    ciphertext
+    ciphertext,
   );
 
   const decoder = new TextDecoder();
@@ -128,7 +127,7 @@ export async function wrapEncryptedMessage(message, aesKey) {
   return {
     type: 'encrypted',
     iv: encrypted.iv,
-    ciphertext: encrypted.ciphertext
+    ciphertext: encrypted.ciphertext,
   };
 }
 
@@ -141,9 +140,9 @@ export async function unwrapEncryptedMessage(wrappedMessage, aesKey) {
   return await decryptMessage(
     {
       iv: wrappedMessage.iv,
-      ciphertext: wrappedMessage.ciphertext
+      ciphertext: wrappedMessage.ciphertext,
     },
-    aesKey
+    aesKey,
   );
 }
 
@@ -160,7 +159,7 @@ const UNENCRYPTED_EVENTS = [
   'webrtc:offer',
   'webrtc:answer',
   'webrtc:candidate',
-  'error'
+  'error',
 ];
 
 // Check if an event should be encrypted

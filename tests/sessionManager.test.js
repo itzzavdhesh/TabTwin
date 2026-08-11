@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createSessionManager, publicGuests, safeSend } from '../server/sessionManager.js';
+import {
+  createSessionManager,
+  publicGuests,
+  safeSend,
+} from '../server/sessionManager.js';
 
 class MockRedis {
   constructor() {
@@ -37,23 +41,31 @@ test('createSession generates unique session ID, hostToken, and default permissi
   const manager = createSessionManager({
     clientUrl: 'http://localhost:5173',
     redisClient,
-    serverId: 'test-server-1'
+    serverId: 'test-server-1',
   });
 
   const session = await manager.createSession({ hostName: 'Alice' });
   assert.ok(session.id, 'Session should have an ID');
   assert.equal(typeof session.id, 'string');
-  assert.equal(session.id.length, 8, 'Session ID should be an 8-character hex string');
+  assert.equal(
+    session.id.length,
+    8,
+    'Session ID should be an 8-character hex string',
+  );
   assert.equal(session.hostName, 'Alice');
   assert.ok(session.hostToken, 'Session should have a hostToken');
-  assert.equal(session.hostToken.length, 64, 'Host token should be 64-character hex string');
+  assert.equal(
+    session.hostToken.length,
+    64,
+    'Host token should be 64-character hex string',
+  );
   assert.deepEqual(session.permissions, {
     canHighlight: true,
     canAnnotate: true,
     canScroll: true,
     canClick: false,
     canType: false,
-    canNavigate: false
+    canNavigate: false,
   });
 });
 
@@ -62,7 +74,7 @@ test('getSession retrieves session and hydrates socket references', async () => 
   const manager = createSessionManager({
     clientUrl: 'http://localhost:5173',
     redisClient,
-    serverId: 'test-server-1'
+    serverId: 'test-server-1',
   });
 
   const created = await manager.createSession({ hostName: 'Bob' });
@@ -80,7 +92,7 @@ test('attachHost associates hostSocket with session', async () => {
   const manager = createSessionManager({
     clientUrl: 'http://localhost:5173',
     redisClient,
-    serverId: 'test-server-1'
+    serverId: 'test-server-1',
   });
 
   const created = await manager.createSession({ hostName: 'Charlie' });
@@ -96,18 +108,23 @@ test('addGuest and removeSocket manage participant lifecycle correctly', async (
   const manager = createSessionManager({
     clientUrl: 'http://localhost:5173',
     redisClient,
-    serverId: 'test-server-1'
+    serverId: 'test-server-1',
   });
 
   const created = await manager.createSession({ hostName: 'Diana' });
   const guestSocket = { id: 'guest-sock-1', readyState: 1, send: () => {} };
-  const joined = await manager.addGuest(created.id, guestSocket, { name: 'Eve' });
+  const joined = await manager.addGuest(created.id, guestSocket, {
+    name: 'Eve',
+  });
 
   assert.ok(joined);
   assert.equal(joined.guest.name, 'Eve');
   assert.equal(joined.session.guests.length, 1);
   assert.equal(joined.session.guests[0].socket, guestSocket);
-  assert.ok(joined.guest.color.startsWith('#'), 'Guest should have a hex color assigned');
+  assert.ok(
+    joined.guest.color.startsWith('#'),
+    'Guest should have a hex color assigned',
+  );
 
   await manager.removeSocket(guestSocket);
   const fetched = await manager.getSession(created.id);
@@ -120,7 +137,7 @@ test('endSession removes session from storage and closes sockets', async () => {
   const manager = createSessionManager({
     clientUrl: 'http://localhost:5173',
     redisClient,
-    serverId: 'test-server-1'
+    serverId: 'test-server-1',
   });
 
   const created = await manager.createSession({ hostName: 'Grace' });
@@ -138,7 +155,7 @@ test('count returns total sessions in redis', async () => {
   const manager = createSessionManager({
     clientUrl: 'http://localhost:5173',
     redisClient,
-    serverId: 'test-server-1'
+    serverId: 'test-server-1',
   });
 
   await manager.createSession({ hostName: 'Host1' });
@@ -151,8 +168,14 @@ test('count returns total sessions in redis', async () => {
 test('publicGuests formats guest array safely', () => {
   const session = {
     guests: [
-      { id: 'g1', name: 'Alice', color: '#ff0000', permissions: { canClick: true }, secret: 'hide-me' }
-    ]
+      {
+        id: 'g1',
+        name: 'Alice',
+        color: '#ff0000',
+        permissions: { canClick: true },
+        secret: 'hide-me',
+      },
+    ],
   };
   const publicList = publicGuests(session);
   assert.equal(publicList.length, 1);
@@ -160,7 +183,7 @@ test('publicGuests formats guest array safely', () => {
     id: 'g1',
     name: 'Alice',
     color: '#ff0000',
-    permissions: { canClick: true }
+    permissions: { canClick: true },
   });
   assert.equal(publicList[0].secret, undefined);
 });
@@ -171,7 +194,7 @@ test('safeSend sends JSON message only when readyState is 1', () => {
     readyState: 1,
     send(data) {
       sentData = data;
-    }
+    },
   };
 
   safeSend(openSocket, { test: 'hello' });
@@ -182,7 +205,7 @@ test('safeSend sends JSON message only when readyState is 1', () => {
     readyState: 3,
     send() {
       closedSent = true;
-    }
+    },
   };
   safeSend(closedSocket, { test: 'world' });
   assert.equal(closedSent, false);

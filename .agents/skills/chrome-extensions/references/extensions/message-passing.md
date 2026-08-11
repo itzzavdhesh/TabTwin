@@ -47,7 +47,7 @@ chrome.runtime.onMessage.addListener((message, sender) => {
 ```
 
 **Note:** Promise-returning `onMessage` listeners require **Chrome 148+**. (Chrome 99 only added
-Promise support on the *sender* side — `chrome.runtime.sendMessage` returning a Promise.) If you must
+Promise support on the _sender_ side — `chrome.runtime.sendMessage` returning a Promise.) If you must
 support older Chrome, use the IIFE + `return true` pattern above.
 **Note:** Do NOT mix the two styles. If you return a Promise, do NOT also call `sendResponse` or `return true`.
 
@@ -55,10 +55,16 @@ support older Chrome, use the IIFE + `return true` pattern above.
 
 ```js
 // content script → service worker
-const result = await chrome.runtime.sendMessage({ type: 'FETCH_DATA', url: location.href });
+const result = await chrome.runtime.sendMessage({
+  type: 'FETCH_DATA',
+  url: location.href,
+});
 
 // service worker → specific tab's content script
-await chrome.tabs.sendMessage(tabId, { type: 'HIGHLIGHT', selector: '.important' });
+await chrome.tabs.sendMessage(tabId, {
+  type: 'HIGHLIGHT',
+  selector: '.important',
+});
 ```
 
 ## Service worker → content script (targeted)
@@ -106,13 +112,13 @@ chrome.runtime.onConnect.addListener((port) => {
 ```js
 // ❌ BROKEN — async work completes but channel is already closed
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  fetchSomething().then(data => sendResponse(data)); // too late
+  fetchSomething().then((data) => sendResponse(data)); // too late
   // missing: return true
 });
 
 // ✅ CORRECT
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  fetchSomething().then(data => sendResponse(data));
+  fetchSomething().then((data) => sendResponse(data));
   return true;
 });
 ```

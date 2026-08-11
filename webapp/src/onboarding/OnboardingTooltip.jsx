@@ -1,10 +1,17 @@
 import React, { useEffect, useRef } from 'react';
 
-export default function OnboardingTooltip({ title, body, targetSelector, onClose }) {
+export default function OnboardingTooltip({
+  title,
+  body,
+  targetSelector,
+  onClose,
+}) {
   const ref = useRef(null);
 
   useEffect(() => {
-    const target = targetSelector ? document.querySelector(targetSelector) : null;
+    const target = targetSelector
+      ? document.querySelector(targetSelector)
+      : null;
     if (!ref.current || !target) return;
 
     const rect = target.getBoundingClientRect();
@@ -22,10 +29,19 @@ export default function OnboardingTooltip({ title, body, targetSelector, onClose
   }, [body, onClose, targetSelector]);
 
   return (
-    <div ref={ref} className="fixed z-[2147483647] rounded-lg border border-slate-200 bg-white p-3 shadow-lg" role="dialog" aria-live="polite">
+    <div
+      ref={ref}
+      className="fixed z-[2147483647] rounded-lg border border-slate-200 bg-white p-3 shadow-lg"
+      role="dialog"
+      aria-live="polite"
+    >
       <div className="text-sm font-semibold text-slate-950">{title}</div>
       <p className="mt-1 text-sm text-slate-600">{body}</p>
-      <button className="mt-2 text-sm font-semibold text-teal-700" onClick={onClose} type="button">
+      <button
+        className="mt-2 text-sm font-semibold text-teal-700"
+        onClick={onClose}
+        type="button"
+      >
         Dismiss
       </button>
     </div>

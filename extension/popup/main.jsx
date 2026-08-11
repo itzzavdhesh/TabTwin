@@ -7,5 +7,5 @@ import './styles.css';
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <Popup />
-  </React.StrictMode>
+  </React.StrictMode>,
 );

@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { publicGuest, withSender, findGuestSocket, broadcastGuests, createSignalingHandler } from '../server/signalingHandler.js';
+import {
+  publicGuest,
+  withSender,
+  findGuestSocket,
+  broadcastGuests,
+  createSignalingHandler,
+} from '../server/signalingHandler.js';
 
 test('publicGuest returns sanitized guest object', () => {
   const guest = {
@@ -8,7 +14,7 @@ test('publicGuest returns sanitized guest object', () => {
     name: 'Bob',
     color: '#00ff00',
     permissions: { canClick: false },
-    secret: 'hidden'
+    secret: 'hidden',
   };
 
   const sanitized = publicGuest(guest);
@@ -16,7 +22,7 @@ test('publicGuest returns sanitized guest object', () => {
     id: 'g-123',
     name: 'Bob',
     color: '#00ff00',
-    permissions: { canClick: false }
+    permissions: { canClick: false },
   });
   assert.equal(sanitized.secret, undefined);
 });
@@ -25,8 +31,8 @@ test('withSender enriches payload with senderRole and guestId', () => {
   const socket = {
     tabTwin: {
       role: 'guest',
-      guestId: 'guest-456'
-    }
+      guestId: 'guest-456',
+    },
   };
 
   const payload = { action: 'hover', x: 10, y: 20 };
@@ -44,8 +50,8 @@ test('findGuestSocket retrieves matching guest socket or null', () => {
   const session = {
     guests: [
       { id: 'g1', socket: mockSocket1 },
-      { id: 'g2', socket: mockSocket2 }
-    ]
+      { id: 'g2', socket: mockSocket2 },
+    ],
   };
 
   assert.equal(findGuestSocket(session, 'g2'), mockSocket2);
@@ -62,8 +68,8 @@ test('broadcastGuests sends message to all or targeted guest', () => {
           readyState: 1,
           send(data) {
             received.push({ id: 'g1', data });
-          }
-        }
+          },
+        },
       },
       {
         id: 'g2',
@@ -71,10 +77,10 @@ test('broadcastGuests sends message to all or targeted guest', () => {
           readyState: 1,
           send(data) {
             received.push({ id: 'g2', data });
-          }
-        }
-      }
-    ]
+          },
+        },
+      },
+    ],
   };
 
   broadcastGuests(session, { test: 1 });
@@ -89,14 +95,14 @@ test('broadcastGuests sends message to all or targeted guest', () => {
 test('createSignalingHandler returns handleConnection function', () => {
   const mockRedisSub = {
     subscribe() {},
-    on() {}
+    on() {},
   };
 
   const handler = createSignalingHandler({
     sessions: {},
     redisClient: {},
     redisSub: mockRedisSub,
-    serverId: 'server-test'
+    serverId: 'server-test',
   });
 
   assert.equal(typeof handler.handleConnection, 'function');

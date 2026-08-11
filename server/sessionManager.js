@@ -13,10 +13,17 @@ const DEFAULT_PERMISSIONS = {
   canScroll: true,
   canClick: false,
   canType: false,
-  canNavigate: false
+  canNavigate: false,
 };
 
-const GUEST_COLORS = ['#2563eb', '#16a34a', '#dc2626', '#9333ea', '#ea580c', '#0891b2'];
+const GUEST_COLORS = [
+  '#2563eb',
+  '#16a34a',
+  '#dc2626',
+  '#9333ea',
+  '#ea580c',
+  '#0891b2',
+];
 
 /** @param {string} id */
 function redisKey(id) {
@@ -41,7 +48,12 @@ export function createSessionManager({ clientUrl, redisClient, serverId }) {
   }
 
   async function _save(session) {
-    await redisClient.set(redisKey(session.id), JSON.stringify(session), 'EX', SESSION_TTL_SECONDS);
+    await redisClient.set(
+      redisKey(session.id),
+      JSON.stringify(session),
+      'EX',
+      SESSION_TTL_SECONDS,
+    );
   }
 
   async function _load(id) {
@@ -52,14 +64,17 @@ export function createSessionManager({ clientUrl, redisClient, serverId }) {
   /** Merge serialisable session data with the live socket references. */
   function _hydrate(data) {
     if (!data) return null;
-    const sockets = socketStore.get(data.id) || { hostSocket: null, guests: [] };
+    const sockets = socketStore.get(data.id) || {
+      hostSocket: null,
+      guests: [],
+    };
     return {
       ...data,
       hostSocket: sockets.hostSocket,
       guests: data.guests.map((g) => {
         const live = sockets.guests.find((s) => s.id === g.id);
         return { ...g, socket: live?.socket ?? null };
-      })
+      }),
     };
   }
 
@@ -84,7 +99,7 @@ export function createSessionManager({ clientUrl, redisClient, serverId }) {
         placeholder,
         'EX',
         SESSION_TTL_SECONDS,
-        'NX'
+        'NX',
       );
       if (result === 'OK') {
         id = candidate;
@@ -92,11 +107,16 @@ export function createSessionManager({ clientUrl, redisClient, serverId }) {
       }
     }
     if (!id) {
-      throw new Error('Failed to generate a unique session ID after maximum attempts.');
+      throw new Error(
+        'Failed to generate a unique session ID after maximum attempts.',
+      );
     }
 
     const hostToken = crypto.randomBytes(32).toString('hex');
-    const hostTokenHash = crypto.createHash('sha256').update(hostToken).digest('hex');
+    const hostTokenHash = crypto
+      .createHash('sha256')
+      .update(hostToken)
+      .digest('hex');
 
     const session = {
       id,
@@ -107,7 +127,7 @@ export function createSessionManager({ clientUrl, redisClient, serverId }) {
       // hostSocket is NOT stored in Redis — it lives only in socketStore.
       guests: [],
       permissions: { ...DEFAULT_PERMISSIONS },
-      activityLog: []
+      activityLog: [],
     };
 
     // Overwrite the placeholder with the full session object.
@@ -130,10 +150,16 @@ export function createSessionManager({ clientUrl, redisClient, serverId }) {
     const sockets = socketStore.get(id);
     if (sockets) {
       for (const { socket } of sockets.guests) {
-        safeSend(socket, { event: 'control:revoke', payload: { reason: 'session-ended' } });
+        safeSend(socket, {
+          event: 'control:revoke',
+          payload: { reason: 'session-ended' },
+        });
         socket?.close?.(1000, 'Session ended');
       }
-      safeSend(sockets.hostSocket, { event: 'session:ended', payload: { sessionId: id } });
+      safeSend(sockets.hostSocket, {
+        event: 'session:ended',
+        payload: { sessionId: id },
+      });
       sockets.hostSocket?.close?.(1000, 'Session ended');
     }
 
@@ -166,7 +192,7 @@ export function createSessionManager({ clientUrl, redisClient, serverId }) {
       name,
       color: GUEST_COLORS[data.guests.length % GUEST_COLORS.length],
       permissions: { ...DEFAULT_PERMISSIONS },
-      serverId: serverId
+      serverId: serverId,
       // socket is NOT stored in Redis.
     };
 
@@ -191,7 +217,10 @@ export function createSessionManager({ clientUrl, redisClient, serverId }) {
         const data = await _load(sessionId);
         if (data && data.hostServerId === serverId) {
           data.hostServerId = null;
-          data.activityLog.unshift({ at: Date.now(), message: 'Host disconnected' });
+          data.activityLog.unshift({
+            at: Date.now(),
+            message: 'Host disconnected',
+          });
           await _save(data);
         }
         changed = true;
@@ -199,9 +228,7 @@ export function createSessionManager({ clientUrl, redisClient, serverId }) {
 
       // Identify the guest that just left before the local list is filtered.
       const disconnectedIds = new Set(
-        sockets.guests
-          .filter((g) => g.socket === socket)
-          .map((g) => g.id)
+        sockets.guests.filter((g) => g.socket === socket).map((g) => g.id),
       );
       sockets.guests = sockets.guests.filter((g) => g.socket !== socket);
 
@@ -221,7 +248,7 @@ export function createSessionManager({ clientUrl, redisClient, serverId }) {
         if (updatedData) {
           safeSend(hostSocket, {
             event: 'session:guest-left',
-            payload: { guests: publicGuests(_hydrate(updatedData)) }
+            payload: { guests: publicGuests(_hydrate(updatedData)) },
           });
         }
         changed = true;
@@ -237,9 +264,16 @@ export function createSessionManager({ clientUrl, redisClient, serverId }) {
 
   // Replace the existing count() function (around line 225-227)
   async function count() {
-    let cursor = '0', total = 0;
+    let cursor = '0',
+      total = 0;
     do {
-      const [next, keys] = await redisClient.scan(cursor, 'MATCH', 'tabtwin:session:*', 'COUNT', 100);
+      const [next, keys] = await redisClient.scan(
+        cursor,
+        'MATCH',
+        'tabtwin:session:*',
+        'COUNT',
+        100,
+      );
       total += keys.length;
       cursor = next;
     } while (cursor !== '0');
@@ -253,7 +287,7 @@ export function createSessionManager({ clientUrl, redisClient, serverId }) {
     attachHost,
     addGuest,
     removeSocket,
-    count
+    count,
   };
 }
 
@@ -262,7 +296,7 @@ export function publicGuests(session) {
     id: guest.id,
     name: guest.name,
     color: guest.color,
-    permissions: guest.permissions
+    permissions: guest.permissions,
   }));
 }
 

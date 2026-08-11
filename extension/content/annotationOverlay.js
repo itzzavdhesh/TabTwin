@@ -12,7 +12,7 @@
       position: 'fixed',
       inset: '0',
       pointerEvents: 'none',
-      zIndex: '2147483645'
+      zIndex: '2147483645',
     });
     document.documentElement.append(layer);
   }
@@ -32,14 +32,15 @@
       background: '#fffbeb',
       color: '#78350f',
       boxShadow: '0 10px 24px rgba(15, 23, 42, 0.16)',
-      font: '500 13px system-ui'
+      font: '500 13px system-ui',
     });
     layer.append(note);
   }
 
   function highlightSelection() {
     const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return;
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed)
+      return;
     const range = selection.getRangeAt(0);
     const mark = document.createElement('mark');
     mark.style.background = '#99f6e4';
@@ -54,10 +55,16 @@
 
   function highlightRegions(regions = []) {
     ensureLayer();
-    const phrases = (Array.isArray(regions) ? regions : []).filter(Boolean).map((region) => String(region));
+    const phrases = (Array.isArray(regions) ? regions : [])
+      .filter(Boolean)
+      .map((region) => String(region));
     if (!phrases.length) return;
 
-    const candidates = Array.from(document.querySelectorAll('button, a, nav, form, main, section, header, footer, input, textarea, [role="button"], [role="navigation"], [role="main"], [role="region"], [role="dialog"]'));
+    const candidates = Array.from(
+      document.querySelectorAll(
+        'button, a, nav, form, main, section, header, footer, input, textarea, [role="button"], [role="navigation"], [role="main"], [role="region"], [role="dialog"]',
+      ),
+    );
     phrases.forEach((phrase) => {
       const target = candidates.find((candidate) => {
         const text = candidate.textContent || '';
@@ -78,7 +85,7 @@
         borderRadius: '8px',
         boxShadow: '0 0 0 9999px rgba(15, 23, 42, 0.12)',
         background: 'rgba(20, 184, 166, 0.12)',
-        pointerEvents: 'none'
+        pointerEvents: 'none',
       });
       layer.append(box);
       window.setTimeout(() => box.remove(), HIGHLIGHT_TTL_MS);
@@ -86,9 +93,19 @@
   }
 
   chrome.runtime.onMessage.addListener((message) => {
-    if (message.type === 'annotation:add') addAnnotation(message.payload?.annotation || message.payload);
-    if (message.type === 'action:request' && message.payload?.type === 'highlight') highlightSelection();
-    if (message.type === 'onboarding:highlight') highlightRegions(message.payload?.regions || message.payload?.guidance?.importantRegions || []);
+    if (message.type === 'annotation:add')
+      addAnnotation(message.payload?.annotation || message.payload);
+    if (
+      message.type === 'action:request' &&
+      message.payload?.type === 'highlight'
+    )
+      highlightSelection();
+    if (message.type === 'onboarding:highlight')
+      highlightRegions(
+        message.payload?.regions ||
+          message.payload?.guidance?.importantRegions ||
+          [],
+      );
   });
 
   ensureLayer();

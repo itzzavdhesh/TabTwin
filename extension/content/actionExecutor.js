@@ -5,7 +5,10 @@
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.type === 'action:request') {
       executeAction(message.payload).then((result) => {
-        chrome.runtime.sendMessage({ type: 'content:action-complete', payload: message.payload });
+        chrome.runtime.sendMessage({
+          type: 'content:action-complete',
+          payload: message.payload,
+        });
         sendResponse(result);
       });
       return true;
@@ -13,7 +16,10 @@
 
     if (message.type === 'agent:actions') {
       executeActions(message.payload?.actions || []).then((result) => {
-        chrome.runtime.sendMessage({ type: 'content:action-complete', payload: { type: 'agent-plan' } });
+        chrome.runtime.sendMessage({
+          type: 'content:action-complete',
+          payload: { type: 'agent-plan' },
+        });
         sendResponse(result);
       });
       return true;
@@ -55,7 +61,13 @@
       if (!element) return { ok: false };
       element.focus();
       element.value = `${element.value || ''}${action.text || ''}`;
-      element.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: action.text || '' }));
+      element.dispatchEvent(
+        new InputEvent('input', {
+          bubbles: true,
+          inputType: 'insertText',
+          data: action.text || '',
+        }),
+      );
       return { ok: true };
     }
 
@@ -85,7 +97,7 @@
       scroll: 'canScroll',
       navigate: 'canNavigate',
       highlight: 'canHighlight',
-      annotate: 'canAnnotate'
+      annotate: 'canAnnotate',
     };
 
     const permKey = PERMISSION_MAP[actionType];
@@ -103,7 +115,8 @@
 
   function findElement(action) {
     if (action.selector) return document.querySelector(action.selector);
-    if (Number.isFinite(action.x) && Number.isFinite(action.y)) return document.elementFromPoint(action.x, action.y);
+    if (Number.isFinite(action.x) && Number.isFinite(action.y))
+      return document.elementFromPoint(action.x, action.y);
     return null;
   }
 
@@ -120,7 +133,7 @@
       background: '#111827',
       color: 'white',
       font: '600 12px system-ui',
-      boxShadow: '0 10px 24px rgba(15, 23, 42, 0.22)'
+      boxShadow: '0 10px 24px rgba(15, 23, 42, 0.22)',
     });
     document.documentElement.append(marker);
     setTimeout(() => marker.remove(), 900);

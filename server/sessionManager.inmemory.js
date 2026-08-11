@@ -13,10 +13,17 @@ const DEFAULT_PERMISSIONS = {
   canScroll: true,
   canClick: false,
   canType: false,
-  canNavigate: false
+  canNavigate: false,
 };
 
-const GUEST_COLORS = ['#2563eb', '#16a34a', '#dc2626', '#9333ea', '#ea580c', '#0891b2'];
+const GUEST_COLORS = [
+  '#2563eb',
+  '#16a34a',
+  '#dc2626',
+  '#9333ea',
+  '#ea580c',
+  '#0891b2',
+];
 
 /**
  * Creates an in-memory session manager whose every method returns a Promise,
@@ -39,7 +46,9 @@ export function createSessionManager({ clientUrl }) {
       }
     }
     if (!id) {
-      throw new Error('Failed to generate a unique session ID after maximum attempts.');
+      throw new Error(
+        'Failed to generate a unique session ID after maximum attempts.',
+      );
     }
 
     const session = {
@@ -50,7 +59,7 @@ export function createSessionManager({ clientUrl }) {
       hostSocket: null,
       guests: [],
       permissions: { ...DEFAULT_PERMISSIONS },
-      activityLog: []
+      activityLog: [],
     };
     sessions.set(id, session);
     return session;
@@ -65,10 +74,16 @@ export function createSessionManager({ clientUrl }) {
     if (!session) return false;
 
     for (const guest of session.guests) {
-      safeSend(guest.socket, { event: 'control:revoke', payload: { reason: 'session-ended' } });
+      safeSend(guest.socket, {
+        event: 'control:revoke',
+        payload: { reason: 'session-ended' },
+      });
       guest.socket?.close?.(1000, 'Session ended');
     }
-    safeSend(session.hostSocket, { event: 'session:ended', payload: { sessionId: id } });
+    safeSend(session.hostSocket, {
+      event: 'session:ended',
+      payload: { sessionId: id },
+    });
     session.hostSocket?.close?.(1000, 'Session ended');
     sessions.delete(id);
     return true;
@@ -91,7 +106,7 @@ export function createSessionManager({ clientUrl }) {
       name,
       color: GUEST_COLORS[session.guests.length % GUEST_COLORS.length],
       socket,
-      permissions: { ...DEFAULT_PERMISSIONS }
+      permissions: { ...DEFAULT_PERMISSIONS },
     };
 
     session.guests.push(guest);
@@ -103,16 +118,24 @@ export function createSessionManager({ clientUrl }) {
     for (const session of sessions.values()) {
       if (session.hostSocket === socket) {
         session.hostSocket = null;
-        session.activityLog.unshift({ at: Date.now(), message: 'Host disconnected' });
+        session.activityLog.unshift({
+          at: Date.now(),
+          message: 'Host disconnected',
+        });
       }
 
       const before = session.guests.length;
-      session.guests = session.guests.filter((guest) => guest.socket !== socket);
+      session.guests = session.guests.filter(
+        (guest) => guest.socket !== socket,
+      );
       if (before !== session.guests.length) {
-        session.activityLog.unshift({ at: Date.now(), message: 'Guest disconnected' });
+        session.activityLog.unshift({
+          at: Date.now(),
+          message: 'Guest disconnected',
+        });
         safeSend(session.hostSocket, {
           event: 'session:guest-left',
-          payload: { guests: publicGuests(session) }
+          payload: { guests: publicGuests(session) },
         });
       }
     }
@@ -129,7 +152,7 @@ export function createSessionManager({ clientUrl }) {
     attachHost,
     addGuest,
     removeSocket,
-    count
+    count,
   };
 }
 
@@ -138,7 +161,7 @@ export function publicGuests(session) {
     id: guest.id,
     name: guest.name,
     color: guest.color,
-    permissions: guest.permissions
+    permissions: guest.permissions,
   }));
 }
 

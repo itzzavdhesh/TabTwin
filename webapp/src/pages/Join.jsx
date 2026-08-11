@@ -44,13 +44,20 @@ export default function Join({ sessionId }) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-50 px-6 py-10">
       <section className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-sm font-semibold uppercase tracking-wide text-teal-600">Join TabTwin</p>
-        <h1 className="mt-2 text-3xl font-bold text-slate-950">Enter the shared session</h1>
+        <p className="text-sm font-semibold uppercase tracking-wide text-teal-600">
+          Join TabTwin
+        </p>
+        <h1 className="mt-2 text-3xl font-bold text-slate-950">
+          Enter the shared session
+        </h1>
         <div className="mt-5">
           <SessionStatus status={status} label={message} />
         </div>
         <form className="mt-6 space-y-4" onSubmit={joinSession}>
-          <label className="block text-sm font-medium text-slate-700" htmlFor="guest-name">
+          <label
+            className="block text-sm font-medium text-slate-700"
+            htmlFor="guest-name"
+          >
             Your name
           </label>
           <input
@@ -69,7 +76,9 @@ export default function Join({ sessionId }) {
             Join Session
           </button>
         </form>
-        <p className="mt-4 text-xs leading-5 text-slate-500">Guest profile preferences are coming soon.</p>
+        <p className="mt-4 text-xs leading-5 text-slate-500">
+          Guest profile preferences are coming soon.
+        </p>
       </section>
     </main>
   );
