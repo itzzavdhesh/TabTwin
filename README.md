@@ -125,6 +125,10 @@ Screenshot placeholder: `docs/screenshots/tabtwin-popup-start-session.png`
 
 The host extension is Chrome-only for the MVP because it depends on Chrome Manifest V3 extension APIs. Guests can join from Chrome, Firefox, Edge, or Safari through the web app.
 
+## Documentation
+
+For an in-depth technical overview of TabTwin's system boundaries, runtime components, WebRTC signaling sequences, and session persistence design, see **[ARCHITECTURE.md](./ARCHITECTURE.md)**.
+
 ## License
 
 MIT

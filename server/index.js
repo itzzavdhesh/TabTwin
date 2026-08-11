@@ -3,6 +3,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import http from 'node:http';
+import crypto from 'node:crypto';
 import { WebSocketServer } from 'ws';
 import Redis from 'ioredis';
 import { createSessionManager } from './sessionManager.js';
@@ -27,13 +28,23 @@ const redisClient = new Redis(REDIS_URL, {
   lazyConnect: false
 });
 
+const redisSub = new Redis(REDIS_URL, {
+  maxRetriesPerRequest: null // Subscribers should keep trying to reconnect
+});
+
+const SERVER_ID = crypto.randomUUID();
+
 redisClient.on('error', (err) => {
   console.error('[TabTwin] Redis connection error:', err.message);
 });
 
+redisSub.on('error', (err) => {
+  console.error('[TabTwin] Redis Sub connection error:', err.message);
+});
+
 const app = express();
 const server = http.createServer(app);
-const sessions = createSessionManager({ clientUrl: CLIENT_URL, redisClient });
+const sessions = createSessionManager({ clientUrl: CLIENT_URL, redisClient, serverId: SERVER_ID });
 
 const allowedOrigins = [
   CLIENT_URL,
@@ -81,7 +92,12 @@ app.get('/api/session/:id', asyncHandler(async (req, res) => {
   }
 
   const authHeader = req.headers.authorization;
-  const isHost = authHeader && authHeader === `Bearer ${session.hostToken}`;
+  let isHost = false;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    const hash = crypto.createHash('sha256').update(token).digest('hex');
+    isHost = hash === session.hostTokenHash;
+  }
 
   const response = {
     exists: true,
@@ -168,7 +184,14 @@ app.delete('/api/session/:id', asyncHandler(async (req, res) => {
   }
 
   const authHeader = req.headers.authorization;
-  if (!authHeader || authHeader !== `Bearer ${session.hostToken}`) {
+  let isHost = false;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    const hash = crypto.createHash('sha256').update(token).digest('hex');
+    isHost = hash === session.hostTokenHash;
+  }
+
+  if (!isHost) {
     res.status(403).json({ error: 'Unauthorized' });
     return;
   }
@@ -185,7 +208,12 @@ app.use((err, _req, res, _next) => {
 });
 
 const wss = new WebSocketServer({ server });
-const signaling = createSignalingHandler({ sessions });
+const signaling = createSignalingHandler({ 
+  sessions, 
+  redisClient, 
+  redisSub, 
+  serverId: SERVER_ID 
+});
 wss.on('connection', signaling.handleConnection);
 
 server.listen(PORT, () => {

@@ -4,51 +4,56 @@ import { SessionRecorder } from '../webapp/src/recording/SessionRecorder.js';
 import { PlaybackEngine } from '../webapp/src/recording/PlaybackEngine.js';
 
 test('SessionRecorder compresses and orders collaboration events', () => {
+  const now = Date.now();
   const recorder = new SessionRecorder({ enabled: true });
   recorder.start();
 
-  recorder.capture({ type: 'cursor:move', payload: { x: 5, y: 8 }, participantId: 'guest-1', timestamp: 1000 });
-  recorder.capture({ type: 'cursor:move', payload: { x: 5, y: 8 }, participantId: 'guest-1', timestamp: 1010 });
-  recorder.capture({ type: 'cursor:move', payload: { x: 9, y: 8 }, participantId: 'guest-1', timestamp: 1030 });
-  recorder.capture({ type: 'scroll', payload: { x: 0, y: 40 }, participantId: 'guest-1', timestamp: 1100 });
-  recorder.capture({ type: 'scroll', payload: { x: 0, y: 40 }, participantId: 'guest-1', timestamp: 1120 });
-  recorder.capture({ type: 'action:request', payload: { type: 'click', x: 10, y: 20 }, participantId: 'guest-2', timestamp: 1200 });
+  recorder.capture({ type: 'cursor:move', payload: { x: 5, y: 8 }, participantId: 'guest-1', timestamp: now + 10 });
+  recorder.capture({ type: 'cursor:move', payload: { x: 5, y: 8 }, participantId: 'guest-1', timestamp: now + 20 });
+  recorder.capture({ type: 'cursor:move', payload: { x: 9, y: 8 }, participantId: 'guest-1', timestamp: now + 30 });
+  recorder.capture({ type: 'scroll', payload: { x: 0, y: 40 }, participantId: 'guest-1', timestamp: now + 100 });
+  recorder.capture({ type: 'scroll', payload: { x: 0, y: 40 }, participantId: 'guest-1', timestamp: now + 120 });
+  recorder.capture({ type: 'action:request', payload: { type: 'click', x: 10, y: 20 }, participantId: 'guest-2', timestamp: now + 200 });
 
   recorder.stop();
   const timeline = recorder.exportTimeline();
 
-  assert.equal(timeline.length, 5);
+  assert.equal(timeline.length, 6);
   assert.equal(timeline[0].eventType, 'session:start');
   assert.equal(timeline[1].eventType, 'cursor:move');
-  assert.equal(timeline[2].eventType, 'scroll');
-  assert.equal(timeline[3].eventType, 'click');
-  assert.equal(timeline[4].eventType, 'session:end');
+  assert.equal(timeline[2].eventType, 'cursor:move');
+  assert.equal(timeline[3].eventType, 'scroll');
+  assert.equal(timeline[4].eventType, 'click');
+  assert.equal(timeline[5].eventType, 'session:end');
   assert.equal(timeline[0].relativeTimestamp, 0);
-  assert.ok(timeline[3].relativeTimestamp >= 0);
+  assert.ok(timeline[4].relativeTimestamp >= 0);
 });
 
 test('SessionRecorder exports timeline after recording is disabled', () => {
+  const now = Date.now();
   const recorder = new SessionRecorder({ enabled: true });
   recorder.start();
-  recorder.capture({ type: 'cursor:move', payload: { x: 1, y: 2 }, participantId: 'guest-1', timestamp: 1000 });
+  recorder.capture({ type: 'cursor:move', payload: { x: 1, y: 2 }, participantId: 'guest-1', timestamp: now + 10 });
   recorder.stop();
 
   recorder.enabled = false;
   const timeline = recorder.exportTimeline();
 
-  assert.equal(timeline.length, 2);
+  assert.equal(timeline.length, 3);
   assert.equal(timeline[0].eventType, 'session:start');
-  assert.equal(timeline[1].eventType, 'session:end');
+  assert.equal(timeline[1].eventType, 'cursor:move');
+  assert.equal(timeline[2].eventType, 'session:end');
 });
 
 test('SessionRecorder ignores malformed events without throwing', () => {
+  const now = Date.now();
   const recorder = new SessionRecorder({ enabled: true });
   recorder.start();
 
   assert.equal(recorder.capture(null), null);
   assert.equal(recorder.capture(undefined), null);
   assert.equal(recorder.capture({ payload: { x: 1 } }), null);
-  const validEvent = recorder.capture({ type: 'cursor:move', payload: { x: 2, y: 3 }, participantId: 'guest-1', timestamp: 1000 });
+  const validEvent = recorder.capture({ type: 'cursor:move', payload: { x: 2, y: 3 }, participantId: 'guest-1', timestamp: now + 10 });
   assert.ok(validEvent);
   assert.equal(validEvent.eventType, 'cursor:move');
 });

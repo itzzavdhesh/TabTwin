@@ -127,19 +127,38 @@ async function endSession() {
   return snapshot();
 }
 
+let reconnectAttempts = 0;
+let reconnectTimeout = null;
+
 function connectSocket() {
   if (!state.session) return;
+
+  if (reconnectTimeout) clearTimeout(reconnectTimeout);
   state.socket?.close();
   state.socket = new WebSocket(WS_URL);
   state.rtc = createHostWebRTC({ sendSignal: sendSocket, onDataMessage: handleRealtimeMessage });
 
   state.socket.addEventListener('open', () => {
+    reconnectAttempts = 0;
     sendSocket('host:connect', { sessionId: state.session.id, hostToken: state.session.hostToken });
   });
 
   state.socket.addEventListener('message', async (event) => {
     const message = JSON.parse(event.data);
     await handleServerEvent(message);
+  });
+
+  state.socket.addEventListener('close', () => {
+    if (!state.session) return; // Intentionally ended
+
+    if (reconnectAttempts < 5) {
+      const delay = Math.pow(2, reconnectAttempts + 1) * 1000;
+      reconnectAttempts++;
+      addLog(`Reconnecting (attempt ${reconnectAttempts})...`);
+      reconnectTimeout = setTimeout(connectSocket, delay);
+    } else {
+      addLog('Connection lost');
+    }
   });
 }
 

@@ -26,9 +26,9 @@ function redisKey(id) {
 /**
  * Creates the session manager backed by the supplied ioredis client.
  *
- * @param {{ clientUrl: string, redisClient: import('ioredis').Redis }} options
+ * @param {{ clientUrl: string, redisClient: import('ioredis').Redis, serverId: string }} options
  */
-export function createSessionManager({ clientUrl, redisClient }) {
+export function createSessionManager({ clientUrl, redisClient, serverId }) {
   // In-process store for socket references only.
   // Shape: Map<sessionId, { hostSocket: WebSocket|null, guests: Array<{ id, socket }> }>
   const socketStore = new Map();
@@ -96,11 +96,12 @@ export function createSessionManager({ clientUrl, redisClient }) {
     }
 
     const hostToken = crypto.randomBytes(32).toString('hex');
+    const hostTokenHash = crypto.createHash('sha256').update(hostToken).digest('hex');
 
     const session = {
       id,
       hostName,
-      hostToken,
+      hostTokenHash,
       link: `${clientUrl.replace(/\/$/, '')}/join/${id}`,
       createdAt: new Date().toISOString(),
       // hostSocket is NOT stored in Redis — it lives only in socketStore.
@@ -112,7 +113,9 @@ export function createSessionManager({ clientUrl, redisClient }) {
     // Overwrite the placeholder with the full session object.
     await _save(session);
     socketStore.set(id, { hostSocket: null, guests: [] });
-    return _hydrate(session);
+    const hydrated = _hydrate(session);
+    hydrated.hostToken = hostToken; // inject plaintext token ONLY for the create response
+    return hydrated;
   }
 
   async function getSession(id) {
@@ -143,7 +146,8 @@ export function createSessionManager({ clientUrl, redisClient }) {
     const data = await _load(sessionId);
     if (!data) return null;
 
-    _logActivity(data, 'Host connected');
+    data.hostServerId = serverId;
+    data.activityLog.unshift({ at: Date.now(), message: 'Host connected' });
     await _save(data);
 
     const entry = _socketEntry(sessionId);
@@ -161,7 +165,8 @@ export function createSessionManager({ clientUrl, redisClient }) {
       id: guestId,
       name,
       color: GUEST_COLORS[data.guests.length % GUEST_COLORS.length],
-      permissions: { ...DEFAULT_PERMISSIONS }
+      permissions: { ...DEFAULT_PERMISSIONS },
+      serverId: serverId
       // socket is NOT stored in Redis.
     };
 
@@ -184,8 +189,9 @@ export function createSessionManager({ clientUrl, redisClient }) {
       if (sockets.hostSocket === socket) {
         sockets.hostSocket = null;
         const data = await _load(sessionId);
-        if (data) {
-          _logActivity(data, 'Host disconnected');
+        if (data && data.hostServerId === serverId) {
+          data.hostServerId = null;
+          data.activityLog.unshift({ at: Date.now(), message: 'Host disconnected' });
           await _save(data);
         }
         changed = true;
