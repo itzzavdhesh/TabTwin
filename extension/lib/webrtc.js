@@ -4,7 +4,9 @@ export function createHostWebRTC({ sendSignal, onDataMessage }) {
   let channel = null;
 
   async function handleOffer(offer, guestId) {
-    peer = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+    peer = new RTCPeerConnection({
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+    });
 
     peer.ondatachannel = (event) => {
       channel = event.channel;
@@ -18,7 +20,11 @@ export function createHostWebRTC({ sendSignal, onDataMessage }) {
     };
 
     peer.onicecandidate = (event) => {
-      if (event.candidate) sendSignal('webrtc:ice-candidate', { guestId, candidate: event.candidate });
+      if (event.candidate)
+        sendSignal('webrtc:ice-candidate', {
+          guestId,
+          candidate: event.candidate,
+        });
     };
 
     await peer.setRemoteDescription(new RTCSessionDescription(offer));

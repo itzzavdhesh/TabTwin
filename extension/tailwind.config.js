@@ -5,9 +5,9 @@ export default {
     extend: {
       colors: {
         ink: '#111827',
-        mint: '#14b8a6'
-      }
-    }
+        mint: '#14b8a6',
+      },
+    },
   },
-  plugins: []
+  plugins: [],
 };

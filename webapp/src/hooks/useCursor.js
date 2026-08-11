@@ -6,7 +6,12 @@ export function useCursor({ onMove }) {
   const [position, setPosition] = useState({ x: 120, y: 120 });
 
   function handlePointerMove(event) {
-    const next = { x: event.clientX, y: event.clientY, viewportWidth: window.innerWidth, viewportHeight: window.innerHeight };
+    const next = {
+      x: event.clientX,
+      y: event.clientY,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+    };
     setPosition(next);
 
     const now = performance.now();

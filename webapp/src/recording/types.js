@@ -12,7 +12,7 @@ export const RECORDING_EVENT_TYPES = new Set([
   'action:approve',
   'click',
   'typing',
-  'typing:approve'
+  'typing:approve',
 ]);
 
 export function isRecordingEvent(eventType) {

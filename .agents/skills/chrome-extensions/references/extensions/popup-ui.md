@@ -28,17 +28,22 @@
 ```html
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { width: 350px; min-height: 200px; padding: 16px; font-family: system-ui; }
-  </style>
-</head>
-<body>
-  <h1>My Extension</h1>
-  <div id="content"></div>
-  <script type="module" src="popup.js"></script>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body {
+        width: 350px;
+        min-height: 200px;
+        padding: 16px;
+        font-family: system-ui;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>My Extension</h1>
+    <div id="content"></div>
+    <script type="module" src="popup.js"></script>
+  </body>
 </html>
 ```
 
@@ -76,7 +81,9 @@ const response = await chrome.runtime.sendMessage({ type: 'GET_STATUS' });
 // Long-lived connection
 const port = chrome.runtime.connect({ name: 'popup' });
 port.postMessage({ type: 'INIT' });
-port.onMessage.addListener((msg) => { /* handle */ });
+port.onMessage.addListener((msg) => {
+  /* handle */
+});
 ```
 
 ## Dynamic Popup vs No Popup
@@ -92,6 +99,7 @@ chrome.action.onClicked.addListener((tab) => {
 ```
 
 You can toggle between popup and no-popup dynamically:
+
 ```js
 chrome.action.setPopup({ popup: 'popup/popup.html' }); // Enable popup
 chrome.action.setPopup({ popup: '' }); // Disable popup (enables onClicked)

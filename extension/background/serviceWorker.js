@@ -16,11 +16,11 @@ const state = {
   settings: {
     allowAgentClick: false,
     allowAgentType: false,
-    allowAgentNavigate: false
+    allowAgentNavigate: false,
   },
   socket: null,
   rtc: null,
-  crdt: createCrdtBridge()
+  crdt: createCrdtBridge(),
 };
 
 // TODO: Add session recording/playback feature for reviewed collaboration sessions.
@@ -75,10 +75,14 @@ async function startSession() {
   const response = await fetch(`${API_URL}/api/session/create`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ hostName: 'Host' })
+    body: JSON.stringify({ hostName: 'Host' }),
   });
   const session = await response.json();
-  state.session = { id: session.session_id, link: session.link, hostToken: session.host_token };
+  state.session = {
+    id: session.session_id,
+    link: session.link,
+    hostToken: session.host_token,
+  };
   state.guests = [];
   addLog('Session started');
   connectSocket();
@@ -87,14 +91,16 @@ async function startSession() {
     const response = await fetch(`${API_URL}/api/session/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ hostName: 'Host' })
+      body: JSON.stringify({ hostName: 'Host' }),
     });
     if (!response.ok) throw new Error(`Server error: ${response.status}`);
     const session = await response.json();
-if (!session.session_id || !session.link) {
-  throw new Error('Invalid response from server: missing session_id or link');
-}
-state.session = { id: session.session_id, link: session.link };
+    if (!session.session_id || !session.link) {
+      throw new Error(
+        'Invalid response from server: missing session_id or link',
+      );
+    }
+    state.session = { id: session.session_id, link: session.link };
     state.session = { id: session.session_id, link: session.link };
     state.guests = [];
     addLog('Session started');
@@ -108,11 +114,11 @@ state.session = { id: session.session_id, link: session.link };
 
 async function endSession() {
   if (state.session) {
-    await fetch(`${API_URL}/api/session/${state.session.id}`, { 
+    await fetch(`${API_URL}/api/session/${state.session.id}`, {
       method: 'DELETE',
       headers: {
-        'Authorization': `Bearer ${state.session.hostToken}`
-      }
+        Authorization: `Bearer ${state.session.hostToken}`,
+      },
     }).catch(() => {});
   }
   state.socket?.close();
@@ -129,10 +135,16 @@ function connectSocket() {
   if (!state.session) return;
   state.socket?.close();
   state.socket = new WebSocket(WS_URL);
-  state.rtc = createHostWebRTC({ sendSignal: sendSocket, onDataMessage: handleRealtimeMessage });
+  state.rtc = createHostWebRTC({
+    sendSignal: sendSocket,
+    onDataMessage: handleRealtimeMessage,
+  });
 
   state.socket.addEventListener('open', () => {
-    sendSocket('host:connect', { sessionId: state.session.id, hostToken: state.session.hostToken });
+    sendSocket('host:connect', {
+      sessionId: state.session.id,
+      hostToken: state.session.hostToken,
+    });
   });
 
   state.socket.addEventListener('message', async (event) => {
@@ -182,8 +194,10 @@ async function handleServerEvent({ event, payload = {} }) {
 }
 
 function handleRealtimeMessage(message) {
-  if (message.event === 'cursor:move') sendToActiveTab({ type: 'cursor:move', payload: message.payload });
-  if (message.event === 'action:request') sendToActiveTab({ type: 'action:request', payload: message.payload });
+  if (message.event === 'cursor:move')
+    sendToActiveTab({ type: 'cursor:move', payload: message.payload });
+  if (message.event === 'action:request')
+    sendToActiveTab({ type: 'action:request', payload: message.payload });
 }
 
 async function runAgent(command) {
@@ -197,13 +211,17 @@ async function runAgent(command) {
     permissions: {
       click: state.settings.allowAgentClick,
       type: state.settings.allowAgentType,
-      navigate: state.settings.allowAgentNavigate
-    }
+      navigate: state.settings.allowAgentNavigate,
+    },
   });
 
   addLog(plan.summary || 'Agent plan ready');
   await sendToActiveTab({ type: 'agent:actions', payload: plan });
-  sendSocket('agent:command', { command, summary: plan.summary, actions: plan.actions });
+  sendSocket('agent:command', {
+    command,
+    summary: plan.summary,
+    actions: plan.actions,
+  });
   return snapshot();
 }
 
@@ -216,7 +234,7 @@ async function collectOpenTabContent() {
     try {
       const [injection] = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
-        func: () => document.body?.innerText?.slice(0, 12000) || ''
+        func: () => document.body?.innerText?.slice(0, 12000) || '',
       });
       content = injection?.result || '';
     } catch {
@@ -237,7 +255,12 @@ async function sendToActiveTab(message) {
 
 function sendSocket(event, payload = {}) {
   if (!state.socket || state.socket.readyState !== WebSocket.OPEN) return;
-  state.socket.send(JSON.stringify({ event, payload: { sessionId: state.session?.id, ...payload } }));
+  state.socket.send(
+    JSON.stringify({
+      event,
+      payload: { sessionId: state.session?.id, ...payload },
+    }),
+  );
 }
 
 function mergeGuest(guest) {
@@ -247,7 +270,10 @@ function mergeGuest(guest) {
 }
 
 function addLog(message) {
-  state.activityLog = [{ message, at: Date.now() }, ...state.activityLog].slice(0, 5);
+  state.activityLog = [{ message, at: Date.now() }, ...state.activityLog].slice(
+    0,
+    5,
+  );
 }
 
 function snapshot() {
@@ -255,7 +281,7 @@ function snapshot() {
     session: state.session,
     guests: state.guests,
     activityLog: state.activityLog,
-    settings: state.settings
+    settings: state.settings,
   };
 }
 

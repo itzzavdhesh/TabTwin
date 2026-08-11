@@ -16,15 +16,15 @@ Build production-ready design systems with Tailwind CSS, including design tokens
 >
 > When applying this skill to TabTwin, translate v4 → v3:
 >
-> | v4 (shown below, do NOT use as-is) | v3 (use this in TabTwin) |
-> | ---------------------------------- | ------------------------ |
-> | `@import "tailwindcss";` | `@tailwind base; @tailwind components; @tailwind utilities;` |
-> | `@theme { --color-primary: … }` | `theme: { extend: { colors: { primary: … } } }` in `tailwind.config.js` |
-> | `@custom-variant dark (…)` | `darkMode: 'class'` in `tailwind.config.js` |
-> | `@utility name { … }` | `plugin(({ addUtilities }) => …)` in `tailwind.config.js` |
+> | v4 (shown below, do NOT use as-is) | v3 (use this in TabTwin)                                                |
+> | ---------------------------------- | ----------------------------------------------------------------------- |
+> | `@import "tailwindcss";`           | `@tailwind base; @tailwind components; @tailwind utilities;`            |
+> | `@theme { --color-primary: … }`    | `theme: { extend: { colors: { primary: … } } }` in `tailwind.config.js` |
+> | `@custom-variant dark (…)`         | `darkMode: 'class'` in `tailwind.config.js`                             |
+> | `@utility name { … }`              | `plugin(({ addUtilities }) => …)` in `tailwind.config.js`               |
 >
 > The **component patterns** (CVA variants, `cn()` helper, responsive/accessibility guidance) are
-> version-agnostic and apply directly to v3. Only the CSS-first *configuration* differs.
+> version-agnostic and apply directly to v3. Only the CSS-first _configuration_ differs.
 >
 > If a future TabTwin change upgrades to v4, drop this warning and follow the v4 patterns as written.
 
@@ -54,7 +54,7 @@ any config into TabTwin.
 
 ```css
 /* app.css - Tailwind v4 CSS-first configuration */
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* Define your theme with @theme */
 @theme {
@@ -205,4 +205,3 @@ Base styles → Variants → Sizes → States → Overrides
 ## Detailed patterns and worked examples
 
 Detailed pattern documentation lives in `references/details.md`. Read that file when the navigation tier above is insufficient.
-

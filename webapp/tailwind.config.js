@@ -6,9 +6,9 @@ export default {
       colors: {
         ink: '#111827',
         mint: '#14b8a6',
-        coral: '#f97316'
-      }
-    }
+        coral: '#f97316',
+      },
+    },
   },
-  plugins: []
+  plugins: [],
 };

@@ -48,13 +48,18 @@ See `references/extensions/tab-management.md`.
 
 ```js
 // ❌ BAD
-chrome.tabs.query({active: true, currentWindow: true}).then(tabs => {
-  chrome.scripting.executeScript({target: {tabId: tabs[0].id}, files: ['content.js']}).then(() => {});
+chrome.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
+  chrome.scripting
+    .executeScript({ target: { tabId: tabs[0].id }, files: ['content.js'] })
+    .then(() => {});
 });
 
 // ✅ GOOD
 const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] });
+await chrome.scripting.executeScript({
+  target: { tabId: tab.id },
+  files: ['content.js'],
+});
 ```
 
 For `runtime.onMessage` listeners that do async work:
@@ -79,10 +84,14 @@ When modifying many DOM elements, batch with `requestAnimationFrame` and yield b
 async function highlightAll(elements) {
   const BATCH = 20;
   for (let i = 0; i < elements.length; i += BATCH) {
-    await new Promise(r => requestAnimationFrame(() => {
-      elements.slice(i, i + BATCH).forEach(el => el.style.backgroundColor = 'yellow');
-      r();
-    }));
+    await new Promise((r) =>
+      requestAnimationFrame(() => {
+        elements
+          .slice(i, i + BATCH)
+          .forEach((el) => (el.style.backgroundColor = 'yellow'));
+        r();
+      }),
+    );
     if (globalThis.scheduler?.yield) await scheduler.yield();
   }
 }
@@ -95,7 +104,9 @@ See `references/extensions/content-scripts.md`.
 ```js
 // ❌ BROKEN — state lost when SW terminates (~30s of inactivity)
 let count = 0;
-chrome.tabs.onUpdated.addListener(() => { count++; });
+chrome.tabs.onUpdated.addListener(() => {
+  count++;
+});
 
 // ✅ CORRECT — persist in chrome.storage, read on every event
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
@@ -127,6 +138,7 @@ await chrome.action.setBadgeText({ text: '5' });
 ### 7. `activeTab` only works on direct user gestures
 
 `activeTab` grants temporary access to the current tab ONLY when triggered by:
+
 - Clicking the extension action icon
 - A context menu item
 - A keyboard shortcut from the `commands` API
@@ -164,7 +176,7 @@ const windows = await chrome.windows.query({ focused: true });
 // ✅ CORRECT — use the right method for your need
 const focused = await chrome.windows.getLastFocused({ populate: true });
 const current = await chrome.windows.getCurrent({ populate: true });
-const all     = await chrome.windows.getAll({ populate: true });
+const all = await chrome.windows.getAll({ populate: true });
 ```
 
 **`chrome.windows` methods:** `getAll`, `getLastFocused`, `getCurrent`, `get(windowId)`, `create`, `update`, `remove`. See `references/extensions/tab-management.md`.
@@ -172,6 +184,7 @@ const all     = await chrome.windows.getAll({ populate: true });
 ## Always Manifest V3
 
 Never generate Manifest V2 code.
+
 - `background.service_worker` not `background.scripts`
 - `chrome.action` not `chrome.browserAction`
 - `chrome.scripting.executeScript` not `chrome.tabs.executeScript`
@@ -183,16 +196,16 @@ Never generate Manifest V2 code.
 
 For detailed API patterns, read the relevant file BEFORE writing code:
 
-| Topic | Reference |
-|-------|-----------|
-| Service worker lifetime | `references/extensions/service-worker.md` |
-| Content scripts & DOM | `references/extensions/content-scripts.md` |
-| Message passing | `references/extensions/message-passing.md` |
-| Popups | `references/extensions/popup-ui.md` |
-| Tab & window management | `references/extensions/tab-management.md` |
-| Storage | `references/extensions/storage.md` |
-| Calling external APIs | `references/extensions/api-calling.md` |
-| Chrome Prompt API | `references/extensions/prompt-api.md` |
+| Topic                   | Reference                                  |
+| ----------------------- | ------------------------------------------ |
+| Service worker lifetime | `references/extensions/service-worker.md`  |
+| Content scripts & DOM   | `references/extensions/content-scripts.md` |
+| Message passing         | `references/extensions/message-passing.md` |
+| Popups                  | `references/extensions/popup-ui.md`        |
+| Tab & window management | `references/extensions/tab-management.md`  |
+| Storage                 | `references/extensions/storage.md`         |
+| Calling external APIs   | `references/extensions/api-calling.md`     |
+| Chrome Prompt API       | `references/extensions/prompt-api.md`      |
 
 ## Output Checklist
 

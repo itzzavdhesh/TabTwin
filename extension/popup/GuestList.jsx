@@ -12,19 +12,33 @@ export default function GuestList({ guests = [], onRevoke }) {
           <p className="text-xs text-slate-500">Waiting for a guest to join.</p>
         ) : (
           guests.map((guest) => (
-            <div className="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2" key={guest.id}>
+            <div
+              className="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2"
+              key={guest.id}
+            >
               <div className="flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ background: guest.color }} />
-                <span className="text-sm font-medium text-slate-800">{guest.name}</span>
+                <span
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ background: guest.color }}
+                />
+                <span className="text-sm font-medium text-slate-800">
+                  {guest.name}
+                </span>
               </div>
-              <button className="rounded-md px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-50" onClick={() => onRevoke(guest.id)} type="button">
+              <button
+                className="rounded-md px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-50"
+                onClick={() => onRevoke(guest.id)}
+                type="button"
+              >
                 Revoke
               </button>
             </div>
           ))
         )}
       </div>
-      <p className="mt-2 text-xs text-slate-500">Control can be revoked per guest.</p>
+      <p className="mt-2 text-xs text-slate-500">
+        Control can be revoked per guest.
+      </p>
     </section>
   );
 }

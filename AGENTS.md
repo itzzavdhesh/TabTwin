@@ -45,9 +45,9 @@ Quick Redis: `docker run -d -p 6379:6379 redis:7-alpine`
 
 Skills live in `.agents/skills/`.
 
-| Skill Name | Use Case |
-| --- | --- |
-| chrome-extensions | Build and debug Chrome MV3 extensions — manifest, content scripts, service workers, popups, message passing, tabs/storage APIs, Chrome Prompt API. |
+| Skill Name             | Use Case                                                                                                                                                                                                       |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| chrome-extensions      | Build and debug Chrome MV3 extensions — manifest, content scripts, service workers, popups, message passing, tabs/storage APIs, Chrome Prompt API.                                                             |
 | tailwind-design-system | Design-token/component-library patterns for Tailwind CSS. ⚠️ Config examples are v4; TabTwin uses **Tailwind v3.4.4** — translate CSS-first config to `tailwind.config.js` (see the skill's SKILL.md warning). |
 
 ## Gotchas

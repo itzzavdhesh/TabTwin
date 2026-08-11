@@ -18,7 +18,7 @@
       width: '100vw',
       height: '100vh',
       pointerEvents: 'none',
-      zIndex: '2147483646'
+      zIndex: '2147483646',
     });
 
     label = document.createElement('div');
@@ -33,7 +33,7 @@
       color: 'white',
       font: '600 12px system-ui',
       transform: 'translate(16px, 14px)',
-      display: 'none'
+      display: 'none',
     });
 
     document.documentElement.append(canvas, label);
@@ -101,13 +101,17 @@
     if (message.type === 'cursor:move') {
       const payload = message.payload || {};
       const x = normalize(payload.x, payload.viewportWidth, window.innerWidth);
-      const y = normalize(payload.y, payload.viewportHeight, window.innerHeight);
+      const y = normalize(
+        payload.y,
+        payload.viewportHeight,
+        window.innerHeight,
+      );
       cursors.set(payload.guestId || 'guest', {
         x,
         y,
         name: payload.name || 'Guest',
         color: payload.color || '#2563eb',
-        updatedAt: Date.now()
+        updatedAt: Date.now(),
       });
     }
   });

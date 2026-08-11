@@ -1,6 +1,12 @@
 // Calls Claude to convert a host command and tab content into a structured browser action plan.
 
-export async function runClaudeAgent({ apiUrl, sessionId, command, tabs, permissions }) {
+export async function runClaudeAgent({
+  apiUrl,
+  sessionId,
+  command,
+  tabs,
+  permissions,
+}) {
   if (!sessionId || !apiUrl) {
     return fallbackPlan(command, tabs);
   }
@@ -8,14 +14,14 @@ export async function runClaudeAgent({ apiUrl, sessionId, command, tabs, permiss
   const response = await fetch(`${apiUrl}/api/agent/run`, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
     },
     body: JSON.stringify({
       sessionId,
       command,
       tabs,
-      permissions
-    })
+      permissions,
+    }),
   });
 
   if (!response.ok) {
@@ -41,14 +47,16 @@ function sanitizePlan(plan, permissions) {
       if (action.type === 'type') return permissions.type;
       if (action.type === 'navigate') return permissions.navigate;
       return true;
-    })
+    }),
   };
 }
 
 function fallbackPlan(command, tabs, reason = 'No Claude API key configured.') {
   return {
     summary: `${reason} Prepared a read-only plan for: ${command}`,
-    actions: tabs.slice(0, 3).map((_tab, index) => ({ type: 'read', tabIndex: index }))
+    actions: tabs
+      .slice(0, 3)
+      .map((_tab, index) => ({ type: 'read', tabIndex: index })),
   };
 }
 

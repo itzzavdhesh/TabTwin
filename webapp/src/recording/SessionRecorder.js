@@ -17,17 +17,31 @@ export class SessionRecorder {
     this.isRecording = true;
     this.sessionStartedAt = this.sessionStartedAt ?? Date.now();
     this.lastCursorEvent = null;
-    const hasStartEvent = this.timeline.some((event) => event.eventType === 'session:start');
+    const hasStartEvent = this.timeline.some(
+      (event) => event.eventType === 'session:start',
+    );
     if (!hasStartEvent) {
-      this.capture({ type: 'session:start', payload: { startedAt: this.sessionStartedAt }, participantId: this.participantId, timestamp: this.sessionStartedAt });
+      this.capture({
+        type: 'session:start',
+        payload: { startedAt: this.sessionStartedAt },
+        participantId: this.participantId,
+        timestamp: this.sessionStartedAt,
+      });
     }
   }
 
   stop(timestamp) {
     if (!this.isRecording) return;
-    const lastTs = this.timeline.length ? this.timeline[this.timeline.length - 1].timestamp : 0;
+    const lastTs = this.timeline.length
+      ? this.timeline[this.timeline.length - 1].timestamp
+      : 0;
     const endTs = timestamp ?? Math.max(Date.now(), lastTs + 1);
-    this.capture({ type: 'session:end', payload: { endedAt: endTs }, participantId: this.participantId, timestamp: endTs });
+    this.capture({
+      type: 'session:end',
+      payload: { endedAt: endTs },
+      participantId: this.participantId,
+      timestamp: endTs,
+    });
     this.isRecording = false;
   }
 
@@ -41,7 +55,8 @@ export class SessionRecorder {
     if (!normalized) return null;
 
     this.timeline.push(normalized);
-    this.lastCursorEvent = eventType === 'cursor:move' ? normalized : this.lastCursorEvent;
+    this.lastCursorEvent =
+      eventType === 'cursor:move' ? normalized : this.lastCursorEvent;
     return normalized;
   }
 
@@ -57,7 +72,8 @@ export class SessionRecorder {
     return sortedEvents.map((event, index) => ({
       ...event,
       payload: this.clonePayload(event.payload),
-      relativeTimestamp: index === 0 ? 0 : Math.max(0, event.timestamp - baseTimestamp)
+      relativeTimestamp:
+        index === 0 ? 0 : Math.max(0, event.timestamp - baseTimestamp),
     }));
   }
 
@@ -69,47 +85,73 @@ export class SessionRecorder {
   }
 
   normalizeEvent(event, eventType) {
-    const timestamp = Number.isFinite(event.timestamp) ? event.timestamp : Date.now();
+    const timestamp = Number.isFinite(event.timestamp)
+      ? event.timestamp
+      : Date.now();
     const payload = this.clonePayload(event.payload);
 
     if (eventType === 'cursor:move') {
       if (!payload || typeof payload !== 'object') return null;
       const shouldSkip = this.shouldSkipCursorEvent(payload);
       if (shouldSkip) return null;
-      return this.buildEvent(eventType, event.participantId || this.participantId, payload, timestamp);
+      return this.buildEvent(
+        eventType,
+        event.participantId || this.participantId,
+        payload,
+        timestamp,
+      );
     }
 
     if (eventType === 'scroll') {
       const previous = this.timeline[this.timeline.length - 1];
-      if (previous?.eventType === 'scroll' && previous.payload?.x === payload?.x && previous.payload?.y === payload?.y) {
+      if (
+        previous?.eventType === 'scroll' &&
+        previous.payload?.x === payload?.x &&
+        previous.payload?.y === payload?.y
+      ) {
         return null;
       }
     }
 
     if (eventType === 'action:request') {
       const normalizedType = payload?.type === 'click' ? 'click' : eventType;
-      return this.buildEvent(normalizedType, event.participantId || this.participantId, payload, timestamp);
+      return this.buildEvent(
+        normalizedType,
+        event.participantId || this.participantId,
+        payload,
+        timestamp,
+      );
     }
 
-    return this.buildEvent(eventType, event.participantId || this.participantId, payload, timestamp);
+    return this.buildEvent(
+      eventType,
+      event.participantId || this.participantId,
+      payload,
+      timestamp,
+    );
   }
 
   shouldSkipCursorEvent(payload) {
     const previous = this.lastCursorEvent;
     if (!previous) return false;
 
-    const samePosition = previous.payload?.x === payload?.x && previous.payload?.y === payload?.y;
+    const samePosition =
+      previous.payload?.x === payload?.x && previous.payload?.y === payload?.y;
     if (samePosition) return true;
 
-    const delta = Math.abs((payload?.x ?? 0) - (previous.payload?.x ?? 0)) + Math.abs((payload?.y ?? 0) - (previous.payload?.y ?? 0));
+    const delta =
+      Math.abs((payload?.x ?? 0) - (previous.payload?.x ?? 0)) +
+      Math.abs((payload?.y ?? 0) - (previous.payload?.y ?? 0));
     return delta <= 1;
   }
 
   clonePayload(payload) {
     if (!payload || typeof payload !== 'object') return {};
-    if (Array.isArray(payload)) return payload.map((item) => this.clonePayload(item));
+    if (Array.isArray(payload))
+      return payload.map((item) => this.clonePayload(item));
     return Object.entries(payload).reduce((result, [key, value]) => {
-      result[key] = value && typeof value === 'object' ? this.clonePayload(value) : value;
+      result[key] =
+        value && typeof value === 'object' ? this.clonePayload(value) : value;
       return result;
     }, {});
   }
@@ -121,7 +163,7 @@ export class SessionRecorder {
       relativeTimestamp: 0,
       eventType,
       participantId,
-      payload
+      payload,
     };
   }
 }

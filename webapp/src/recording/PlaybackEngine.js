@@ -22,13 +22,15 @@ export class PlaybackEngine {
     }
 
     this.recording = recording;
-    this.events = recording.events
-      .slice()
-      .sort((left, right) => {
-        const leftTime = Number.isFinite(left.relativeTimestamp) ? left.relativeTimestamp : left.timestamp;
-        const rightTime = Number.isFinite(right.relativeTimestamp) ? right.relativeTimestamp : right.timestamp;
-        return leftTime - rightTime;
-      });
+    this.events = recording.events.slice().sort((left, right) => {
+      const leftTime = Number.isFinite(left.relativeTimestamp)
+        ? left.relativeTimestamp
+        : left.timestamp;
+      const rightTime = Number.isFinite(right.relativeTimestamp)
+        ? right.relativeTimestamp
+        : right.timestamp;
+      return leftTime - rightTime;
+    });
     this.currentTime = 0;
     this.state = 'paused';
     this.playbackCursor = 0;
@@ -121,7 +123,10 @@ export class PlaybackEngine {
 
   getDuration() {
     if (!this.events.length) return 0;
-    return this.events[this.events.length - 1].relativeTimestamp ?? this.events[this.events.length - 1].timestamp;
+    return (
+      this.events[this.events.length - 1].relativeTimestamp ??
+      this.events[this.events.length - 1].timestamp
+    );
   }
 
   stopTimer() {
@@ -133,7 +138,10 @@ export class PlaybackEngine {
 
   scheduleNext() {
     this.stopTimer();
-    this.playbackTimer = setTimeout(() => this.advance(), 100 / this.playbackSpeed);
+    this.playbackTimer = setTimeout(
+      () => this.advance(),
+      100 / this.playbackSpeed,
+    );
   }
 
   notifyProgress() {
@@ -143,7 +151,10 @@ export class PlaybackEngine {
   findCursorIndex(time) {
     const targetTime = Math.max(0, Number(time) || 0);
     let index = 0;
-    while (index < this.events.length && this.events[index].relativeTimestamp < targetTime) {
+    while (
+      index < this.events.length &&
+      this.events[index].relativeTimestamp < targetTime
+    ) {
       index += 1;
     }
     return Math.max(0, index);

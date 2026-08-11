@@ -12,7 +12,7 @@ const DEFAULT_PERMISSIONS = {
   canScroll: true,
   canClick: false,
   canType: false,
-  canNavigate: false
+  canNavigate: false,
 };
 
 export function useSession({ sessionId, guestName, recordingEnabled = false }) {
@@ -26,11 +26,17 @@ export function useSession({ sessionId, guestName, recordingEnabled = false }) {
   const [permissions, setPermissions] = useState(DEFAULT_PERMISSIONS);
   const [recording, setRecording] = useState(null);
   const [recordingOn, setRecordingOn] = useState(recordingEnabled);
-  const { createOffer, handleSignal, sendData } = useWebRTC({ socketRef, sessionId });
+  const { createOffer, handleSignal, sendData } = useWebRTC({
+    socketRef,
+    sessionId,
+  });
 
   useEffect(() => {
     if (!recorderRef.current) {
-      recorderRef.current = new SessionRecorder({ enabled: recordingEnabled, participantId: guestName });
+      recorderRef.current = new SessionRecorder({
+        enabled: recordingEnabled,
+        participantId: guestName,
+      });
     }
 
     recorderRef.current.enabled = recordingEnabled;
@@ -53,13 +59,23 @@ export function useSession({ sessionId, guestName, recordingEnabled = false }) {
     socketRef.current = socket;
 
     socket.addEventListener('open', () => {
-      socket.send(JSON.stringify({ event: 'session:join', payload: { sessionId, name: guestName } }));
+      socket.send(
+        JSON.stringify({
+          event: 'session:join',
+          payload: { sessionId, name: guestName },
+        }),
+      );
     });
 
     socket.addEventListener('message', (event) => {
       const message = JSON.parse(event.data);
       if (message.event === 'session:joined') {
-        recorderRef.current?.capture({ type: 'participant:joined', payload: { guest: message.payload.guest }, participantId: guestName, timestamp: Date.now() });
+        recorderRef.current?.capture({
+          type: 'participant:joined',
+          payload: { guest: message.payload.guest },
+          participantId: guestName,
+          timestamp: Date.now(),
+        });
         setGuest(message.payload.guest);
         setPermissions(message.payload.permissions || DEFAULT_PERMISSIONS);
         setStatus('connected');
@@ -72,8 +88,18 @@ export function useSession({ sessionId, guestName, recordingEnabled = false }) {
           setStatus('ended');
           setStatusLabel('Session ended');
         } else {
-          recorderRef.current?.capture({ type: 'permission:changed', payload: { reason: 'control-revoked' }, participantId: guestName, timestamp: Date.now() });
-          setPermissions((current) => ({ ...current, canClick: false, canType: false, canNavigate: false }));
+          recorderRef.current?.capture({
+            type: 'permission:changed',
+            payload: { reason: 'control-revoked' },
+            participantId: guestName,
+            timestamp: Date.now(),
+          });
+          setPermissions((current) => ({
+            ...current,
+            canClick: false,
+            canType: false,
+            canNavigate: false,
+          }));
           setStatusLabel('Control revoked');
         }
       }
@@ -90,7 +116,9 @@ export function useSession({ sessionId, guestName, recordingEnabled = false }) {
 
     socket.addEventListener('close', () => {
       setStatus((prev) => (prev === 'ended' ? prev : 'offline'));
-      setStatusLabel((prev) => (prev === 'Session ended' ? prev : 'Disconnected'));
+      setStatusLabel((prev) =>
+        prev === 'Session ended' ? prev : 'Disconnected',
+      );
     });
 
     return () => socket.close();
@@ -103,7 +131,12 @@ export function useSession({ sessionId, guestName, recordingEnabled = false }) {
   }
 
   function captureEvent(type, payload) {
-    recorderRef.current?.capture({ type, payload, participantId: guestName, timestamp: Date.now() });
+    recorderRef.current?.capture({
+      type,
+      payload,
+      participantId: guestName,
+      timestamp: Date.now(),
+    });
   }
 
   function sendCursorMove(position) {
@@ -148,6 +181,6 @@ export function useSession({ sessionId, guestName, recordingEnabled = false }) {
     sendCursorMove,
     requestAction,
     addAnnotation,
-    leave
+    leave,
   };
 }

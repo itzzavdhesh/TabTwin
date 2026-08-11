@@ -7,9 +7,9 @@ export default defineConfig({
   root: 'popup',
   build: {
     outDir: '../popup-dist',
-    emptyOutDir: true
+    emptyOutDir: true,
   },
   server: {
-    port: 5174
-  }
+    port: 5174,
+  },
 });

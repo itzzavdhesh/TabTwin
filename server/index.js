@@ -16,8 +16,8 @@ const REDIS_URL = process.env.REDIS_URL;
 if (!REDIS_URL) {
   console.error(
     '[TabTwin] REDIS_URL is not set.\n' +
-    'Start Redis locally and add REDIS_URL=redis://localhost:6379 to your .env file.\n' +
-    'Quick start: docker run -p 6379:6379 redis:7-alpine'
+      'Start Redis locally and add REDIS_URL=redis://localhost:6379 to your .env file.\n' +
+      'Quick start: docker run -p 6379:6379 redis:7-alpine',
   );
   process.exit(1);
 }
@@ -25,11 +25,11 @@ if (!REDIS_URL) {
 const redisClient = new Redis(REDIS_URL, {
   // Retry up to 3 times with a 500 ms delay before giving up on startup.
   maxRetriesPerRequest: 3,
-  lazyConnect: false
+  lazyConnect: false,
 });
 
 const redisSub = new Redis(REDIS_URL, {
-  maxRetriesPerRequest: null // Subscribers should keep trying to reconnect
+  maxRetriesPerRequest: null, // Subscribers should keep trying to reconnect
 });
 
 const SERVER_ID = crypto.randomUUID();
@@ -44,14 +44,18 @@ redisSub.on('error', (err) => {
 
 const app = express();
 const server = http.createServer(app);
-const sessions = createSessionManager({ clientUrl: CLIENT_URL, redisClient, serverId: SERVER_ID });
+const sessions = createSessionManager({
+  clientUrl: CLIENT_URL,
+  redisClient,
+  serverId: SERVER_ID,
+});
 
 const allowedOrigins = [
   CLIENT_URL,
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   /^chrome-extension:\/\//,
-  /^moz-extension:\/\//
+  /^moz-extension:\/\//,
 ];
 
 app.use(cors({ origin: allowedOrigins }));
@@ -69,124 +73,149 @@ function asyncHandler(fn) {
   return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 }
 
-app.get('/api/health', asyncHandler(async (_req, res) => {
-  res.json({ ok: true, service: 'tabtwin-server', sessions: await sessions.count() });
-}));
+app.get(
+  '/api/health',
+  asyncHandler(async (_req, res) => {
+    res.json({
+      ok: true,
+      service: 'tabtwin-server',
+      sessions: await sessions.count(),
+    });
+  }),
+);
 
-app.post('/api/session/create', asyncHandler(async (req, res) => {
-  const hostName = req.body?.hostName || 'Host';
-  const session = await sessions.createSession({ hostName });
-  res.status(201).json({
-    session_id: session.id,
-    host_token: session.hostToken,
-    link: session.link,
-    permissions: session.permissions
-  });
-}));
+app.post(
+  '/api/session/create',
+  asyncHandler(async (req, res) => {
+    const hostName = req.body?.hostName || 'Host';
+    const session = await sessions.createSession({ hostName });
+    res.status(201).json({
+      session_id: session.id,
+      host_token: session.hostToken,
+      link: session.link,
+      permissions: session.permissions,
+    });
+  }),
+);
 
-app.get('/api/session/:id', asyncHandler(async (req, res) => {
-  const session = await sessions.getSession(req.params.id);
-  if (!session) {
-    res.status(404).json({ exists: false, message: 'Session not found or expired.' });
-    return;
-  }
+app.get(
+  '/api/session/:id',
+  asyncHandler(async (req, res) => {
+    const session = await sessions.getSession(req.params.id);
+    if (!session) {
+      res
+        .status(404)
+        .json({ exists: false, message: 'Session not found or expired.' });
+      return;
+    }
 
-  const authHeader = req.headers.authorization;
-  const isHost = authHeader && authHeader === `Bearer ${session.hostToken}`;
+    const authHeader = req.headers.authorization;
+    const isHost = authHeader && authHeader === `Bearer ${session.hostToken}`;
 
-  const response = {
-    exists: true,
-    session_id: session.id,
-    createdAt: session.createdAt
-  };
+    const response = {
+      exists: true,
+      session_id: session.id,
+      createdAt: session.createdAt,
+    };
 
-  if (isHost) {
-    response.guests = session.guests.map((guest) => ({
-      id: guest.id,
-      name: guest.name,
-      color: guest.color,
-      permissions: guest.permissions
-    }));
-  }
+    if (isHost) {
+      response.guests = session.guests.map((guest) => ({
+        id: guest.id,
+        name: guest.name,
+        color: guest.color,
+        permissions: guest.permissions,
+      }));
+    }
 
-  res.json(response);
-}));
+    res.json(response);
+  }),
+);
 
-app.post('/api/agent/run', asyncHandler(async (req, res) => {
-  const { sessionId, command, tabs } = req.body;
-  
-  if (!sessionId) {
-    return res.status(401).json({ error: 'Session ID is required.' });
-  }
+app.post(
+  '/api/agent/run',
+  asyncHandler(async (req, res) => {
+    const { sessionId, command, tabs } = req.body;
 
-  const session = await sessions.getSession(sessionId);
-  if (!session) {
-    return res.status(401).json({ error: 'Invalid or expired session.' });
-  }
+    if (!sessionId) {
+      return res.status(401).json({ error: 'Session ID is required.' });
+    }
 
-  // Use trusted server-side permissions, mapping them to the format expected by the LLM
-  const permissions = {
-    click: session.permissions.canClick,
-    type: session.permissions.canType,
-    navigate: session.permissions.canNavigate
-  };
+    const session = await sessions.getSession(sessionId);
+    if (!session) {
+      return res.status(401).json({ error: 'Invalid or expired session.' });
+    }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ error: 'Server missing ANTHROPIC_API_KEY.' });
-  }
+    // Use trusted server-side permissions, mapping them to the format expected by the LLM
+    const permissions = {
+      click: session.permissions.canClick,
+      type: session.permissions.canType,
+      navigate: session.permissions.canNavigate,
+    };
 
-  const MODEL = 'claude-sonnet-4-20250514';
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01'
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 1800,
-      system: [
-        'You are TabTwin browser agent planner.',
-        'Respond only with JSON in this shape: {"summary":"...","actions":[{"type":"navigate","tabIndex":0},{"type":"read","tabIndex":1},{"type":"click","selector":"#compose-button"},{"type":"type","selector":"#reply-box","text":"drafted reply"}]}.',
-        'Do not include markdown fences. Respect permissions and omit disallowed actions.'
-      ].join(' '),
-      messages: [
-        {
-          role: 'user',
-          content: JSON.stringify({ command, tabs, permissions })
-        }
-      ]
-    })
-  });
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      return res
+        .status(500)
+        .json({ error: 'Server missing ANTHROPIC_API_KEY.' });
+    }
 
-  let body;
-  try {
-    body = await response.json();
-  } catch (err) {
-    return res.status(500).json({ error: 'Failed to parse upstream response as JSON.' });
-  }
-  
-  res.status(response.status).json(body);
-}));
+    const MODEL = 'claude-sonnet-4-20250514';
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 1800,
+        system: [
+          'You are TabTwin browser agent planner.',
+          'Respond only with JSON in this shape: {"summary":"...","actions":[{"type":"navigate","tabIndex":0},{"type":"read","tabIndex":1},{"type":"click","selector":"#compose-button"},{"type":"type","selector":"#reply-box","text":"drafted reply"}]}.',
+          'Do not include markdown fences. Respect permissions and omit disallowed actions.',
+        ].join(' '),
+        messages: [
+          {
+            role: 'user',
+            content: JSON.stringify({ command, tabs, permissions }),
+          },
+        ],
+      }),
+    });
 
-app.delete('/api/session/:id', asyncHandler(async (req, res) => {
-  const session = await sessions.getSession(req.params.id);
-  if (!session) {
-    res.status(404).json({ ended: false });
-    return;
-  }
+    let body;
+    try {
+      body = await response.json();
+    } catch (err) {
+      return res
+        .status(500)
+        .json({ error: 'Failed to parse upstream response as JSON.' });
+    }
 
-  const authHeader = req.headers.authorization;
-  if (!authHeader || authHeader !== `Bearer ${session.hostToken}`) {
-    res.status(403).json({ error: 'Unauthorized' });
-    return;
-  }
+    res.status(response.status).json(body);
+  }),
+);
 
-  const ended = await sessions.endSession(req.params.id);
-  res.status(ended ? 200 : 404).json({ ended });
-}));
+app.delete(
+  '/api/session/:id',
+  asyncHandler(async (req, res) => {
+    const session = await sessions.getSession(req.params.id);
+    if (!session) {
+      res.status(404).json({ ended: false });
+      return;
+    }
+
+    const authHeader = req.headers.authorization;
+    if (!authHeader || authHeader !== `Bearer ${session.hostToken}`) {
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const ended = await sessions.endSession(req.params.id);
+    res.status(ended ? 200 : 404).json({ ended });
+  }),
+);
 
 // Express error-handling middleware: catches errors forwarded by asyncHandler.
 // eslint-disable-next-line no-unused-vars
@@ -196,11 +225,11 @@ app.use((err, _req, res, _next) => {
 });
 
 const wss = new WebSocketServer({ server });
-const signaling = createSignalingHandler({ 
-  sessions, 
-  redisClient, 
-  redisSub, 
-  serverId: SERVER_ID 
+const signaling = createSignalingHandler({
+  sessions,
+  redisClient,
+  redisSub,
+  serverId: SERVER_ID,
 });
 wss.on('connection', signaling.handleConnection);
 
