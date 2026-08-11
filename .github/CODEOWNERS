@@ -1,0 +1,15 @@
+# Default owners for everything
+*                   @itzzavdhesh
+
+# Monorepo Workspace Owners
+/webapp/            @itzzavdhesh
+/server/            @itzzavdhesh
+/extension/         @itzzavdhesh
+
+# Infrastructure & DevOps
+/.github/           @itzzavdhesh
+/Dockerfile         @itzzavdhesh
+/docker-compose.yml @itzzavdhesh
+
+# Testing
+/tests/             @itzzavdhesh
