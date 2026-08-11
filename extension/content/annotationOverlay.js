@@ -1,6 +1,7 @@
 // Renders TabTwin highlights and annotation notes on the host's active page.
 (() => {
   const LAYER_ID = 'tabtwin-annotation-layer';
+  const HIGHLIGHT_TTL_MS = 3800;
   let layer;
 
   function ensureLayer() {
@@ -51,9 +52,43 @@
     }
   }
 
+  function highlightRegions(regions = []) {
+    ensureLayer();
+    const phrases = (Array.isArray(regions) ? regions : []).filter(Boolean).map((region) => String(region));
+    if (!phrases.length) return;
+
+    const candidates = Array.from(document.querySelectorAll('button, a, nav, form, main, section, header, footer, input, textarea, [role="button"], [role="navigation"], [role="main"], [role="region"], [role="dialog"]'));
+    phrases.forEach((phrase) => {
+      const target = candidates.find((candidate) => {
+        const text = candidate.textContent || '';
+        return text.toLowerCase().includes(phrase.toLowerCase());
+      });
+
+      if (!target) return;
+
+      const rect = target.getBoundingClientRect();
+      const box = document.createElement('div');
+      Object.assign(box.style, {
+        position: 'absolute',
+        left: `${rect.left + window.scrollX}px`,
+        top: `${rect.top + window.scrollY}px`,
+        width: `${rect.width}px`,
+        height: `${rect.height}px`,
+        border: '2px solid #14b8a6',
+        borderRadius: '8px',
+        boxShadow: '0 0 0 9999px rgba(15, 23, 42, 0.12)',
+        background: 'rgba(20, 184, 166, 0.12)',
+        pointerEvents: 'none'
+      });
+      layer.append(box);
+      window.setTimeout(() => box.remove(), HIGHLIGHT_TTL_MS);
+    });
+  }
+
   chrome.runtime.onMessage.addListener((message) => {
     if (message.type === 'annotation:add') addAnnotation(message.payload?.annotation || message.payload);
     if (message.type === 'action:request' && message.payload?.type === 'highlight') highlightSelection();
+    if (message.type === 'onboarding:highlight') highlightRegions(message.payload?.regions || message.payload?.guidance?.importantRegions || []);
   });
 
   ensureLayer();

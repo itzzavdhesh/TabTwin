@@ -1,7 +1,48 @@
 // Routes TabTwin WebSocket events between hosts, guests, CRDT peers, and the AI agent bridge.
+import crypto from 'node:crypto';
 import { publicGuests, safeSend } from './sessionManager.js';
 
-export function createSignalingHandler({ sessions }) {
+export function createSignalingHandler({ sessions, redisClient, redisSub, serverId }) {
+  const SERVER_CHANNEL = `tabtwin:server:${serverId}`;
+
+  // Listen for messages from other server instances.
+  redisSub.subscribe(SERVER_CHANNEL, (err) => {
+    if (err) {
+      console.error(`[TabTwin] Failed to subscribe to ${SERVER_CHANNEL}:`, err.message);
+    }
+  });
+
+  redisSub.on('message', (channel, message) => {
+    if (channel !== SERVER_CHANNEL) return;
+
+    try {
+      const { sessionId, guestId, event, payload } = JSON.parse(message);
+      deliverLocally(sessionId, guestId, event, payload).catch((err) => {
+        console.error('[TabTwin] Error delivering Pub/Sub message locally:', err.message);
+      });
+    } catch (err) {
+      console.error('[TabTwin] Error processing Pub/Sub message:', err.message);
+    }
+  });
+
+  async function deliverLocally(sessionId, guestId, event, payload) {
+    const session = await sessions.getSession(sessionId);
+    if (!session) return;
+
+    if (guestId) {
+      // Send to specific guest or broadcast to all guests if guestId is 'broadcast'
+      if (guestId === 'broadcast') {
+        broadcastGuests(session, { event, payload });
+      } else {
+        const target = findGuestSocket(session, guestId);
+        if (target) safeSend(target, { event, payload });
+      }
+    } else {
+      // Send to host
+      if (session.hostSocket) safeSend(session.hostSocket, { event, payload });
+    }
+  }
+
   function handleConnection(socket) {
     socket.tabTwin = { role: 'unknown', sessionId: null, guestId: null };
 
@@ -26,6 +67,12 @@ export function createSignalingHandler({ sessions }) {
 
     switch (event) {
       case 'host:connect': {
+        const hash = payload.hostToken ? crypto.createHash('sha256').update(payload.hostToken).digest('hex') : null;
+        if (!session || hash !== session.hostTokenHash) {
+          safeSend(socket, { event: 'error', payload: { message: 'Unauthorized or session not found.' } });
+          return;
+        }
+
         const nextSession = await sessions.attachHost(payload.sessionId, socket);
         if (!nextSession) {
           safeSend(socket, { event: 'error', payload: { message: 'Session not found.' } });
@@ -63,22 +110,92 @@ export function createSignalingHandler({ sessions }) {
           }
         });
 
-        safeSend(joined.session.hostSocket, {
+        // Notify host (might be remote)
+        const hostTarget = joined.session.hostSocket;
+        const hostMessage = {
           event: 'session:joined',
           payload: { guest: publicGuest(joined.guest), guests: publicGuests(joined.session) }
-        });
+        };
+
+        if (hostTarget) {
+          safeSend(hostTarget, hostMessage);
+        } else if (joined.session.hostServerId) {
+          publishToRemote(joined.session.hostServerId, {
+            sessionId: joined.session.id,
+            event: hostMessage.event,
+            payload: hostMessage.payload
+          });
+        }
+        return;
+      }
+
+      case 'action:request': {
+        if (!session) return;
+
+        // Enforce guest permissions server-side before forwarding to the host.
+        if (socket.tabTwin.role === 'guest') {
+          const guest = session.guests.find((g) => g.id === socket.tabTwin.guestId);
+          const perms = guest?.permissions || {};
+          const actionType = payload.type;
+
+          const permissionMap = {
+            click: perms.canClick,
+            type: perms.canType,
+            scroll: perms.canScroll,
+            navigate: perms.canNavigate,
+            highlight: perms.canHighlight,
+            annotate: perms.canAnnotate
+          };
+
+          if (!(actionType in permissionMap) || !permissionMap[actionType]) {
+            safeSend(socket, {
+              event: 'error',
+              payload: { message: `Permission denied: ${actionType} is not allowed.` }
+            });
+            return;
+          }
+        }
+
+        const target = socket.tabTwin.role === 'host' ? findGuestSocket(session, payload.guestId) : session.hostSocket;
+        safeSend(target, { event, payload: withSender(socket, payload) });
         return;
       }
 
       case 'cursor:move':
-      case 'action:request':
       case 'crdt:update':
       case 'webrtc:offer':
       case 'webrtc:answer':
-      case 'webrtc:ice-candidate': {
+      case 'webrtc:ice-candidate':
+      case 'onboarding:guidance': {
         if (!session) return;
-        const target = socket.tabTwin.role === 'host' ? findGuestSocket(session, payload.guestId) : session.hostSocket;
-        safeSend(target, { event, payload: withSender(socket, payload) });
+        const isHost = socket.tabTwin.role === 'host';
+        const targetGuestId = payload.guestId;
+
+        if (isHost) {
+          const guest = session.guests.find(g => g.id === targetGuestId);
+          if (!guest) return;
+
+          if (guest.socket) {
+            safeSend(guest.socket, { event, payload: withSender(socket, payload) });
+          } else if (guest.serverId) {
+            publishToRemote(guest.serverId, {
+              sessionId: session.id,
+              guestId: guest.id,
+              event,
+              payload: withSender(socket, payload)
+            });
+          }
+        } else {
+          if (session.hostSocket) {
+            safeSend(session.hostSocket, { event, payload: withSender(socket, payload) });
+          } else if (session.hostServerId) {
+            publishToRemote(session.hostServerId, {
+              sessionId: session.id,
+              event,
+              payload: withSender(socket, payload)
+            });
+          }
+        }
         return;
       }
 
@@ -87,21 +204,64 @@ export function createSignalingHandler({ sessions }) {
       case 'agent:action':
       case 'control:revoke': {
         if (!session) return;
-        broadcastGuests(session, { event, payload: withSender(socket, payload) }, payload.guestId);
+        const msg = { event, payload: withSender(socket, payload) };
+        const targetGuestId = payload.guestId;
+
+        if (targetGuestId) {
+          const guest = session.guests.find(g => g.id === targetGuestId);
+          if (guest?.socket) {
+            safeSend(guest.socket, msg);
+          } else if (guest?.serverId) {
+            publishToRemote(guest.serverId, {
+              sessionId: session.id,
+              guestId: guest.id,
+              event,
+              payload: msg.payload
+            });
+          }
+        } else {
+          // Broadcast to all guests across all servers
+          const servers = new Set();
+          for (const guest of session.guests) {
+            if (guest.socket) {
+              safeSend(guest.socket, msg);
+            } else if (guest.serverId) {
+              servers.add(guest.serverId);
+            }
+          }
+
+          for (const remoteServerId of servers) {
+            publishToRemote(remoteServerId, {
+              sessionId: session.id,
+              guestId: 'broadcast',
+              event,
+              payload: msg.payload
+            });
+          }
+        }
         return;
       }
 
       case 'agent:command': {
         if (!session) return;
-        // TODO: Move AI command execution to a queued worker for long-running browser tasks.
-        safeSend(session.hostSocket, {
+        const msg = {
           event: 'agent:action',
           payload: {
             command: payload.command,
             actions: payload.actions || [],
             summary: payload.summary || 'Agent command received.'
           }
-        });
+        };
+
+        if (session.hostSocket) {
+          safeSend(session.hostSocket, msg);
+        } else if (session.hostServerId) {
+          publishToRemote(session.hostServerId, {
+            sessionId: session.id,
+            event: msg.event,
+            payload: msg.payload
+          });
+        }
         return;
       }
 
@@ -110,10 +270,16 @@ export function createSignalingHandler({ sessions }) {
     }
   }
 
+  function publishToRemote(targetServerId, message) {
+    redisClient.publish(`tabtwin:server:${targetServerId}`, JSON.stringify(message)).catch((err) => {
+      console.error(`[TabTwin] Failed to publish message to remote server ${targetServerId}:`, err.message);
+    });
+  }
+
   return { handleConnection };
 }
 
-function publicGuest(guest) {
+export function publicGuest(guest) {
   return {
     id: guest.id,
     name: guest.name,
@@ -122,7 +288,7 @@ function publicGuest(guest) {
   };
 }
 
-function withSender(socket, payload) {
+export function withSender(socket, payload) {
   return {
     ...payload,
     senderRole: socket.tabTwin.role,
@@ -130,11 +296,11 @@ function withSender(socket, payload) {
   };
 }
 
-function findGuestSocket(session, guestId) {
+export function findGuestSocket(session, guestId) {
   return session.guests.find((guest) => guest.id === guestId)?.socket || null;
 }
 
-function broadcastGuests(session, message, guestId = null) {
+export function broadcastGuests(session, message, guestId = null) {
   for (const guest of session.guests) {
     if (!guestId || guest.id === guestId) {
       safeSend(guest.socket, message);

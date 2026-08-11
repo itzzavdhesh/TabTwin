@@ -1,19 +1,14 @@
 // Calls Claude to convert a host command and tab content into a structured browser action plan.
-const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
-const MODEL = 'claude-sonnet-4-20250514';
 
-export async function runClaudeAgent({ apiKey, command, tabs, permissions }) {
-  if (!apiKey) {
+export async function runClaudeAgent({ apiUrl, sessionId, command, tabs, permissions }) {
+  if (!sessionId || !apiUrl) {
     return fallbackPlan(command, tabs);
   }
 
-  const response = await fetch(ANTHROPIC_URL, {
+  const response = await fetch(`${apiUrl}/api/agent/run`, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
+      'Content-Type': 'application/json'
     },
     body: JSON.stringify({
       model: MODEL,

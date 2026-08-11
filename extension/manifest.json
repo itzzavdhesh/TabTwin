@@ -25,7 +25,8 @@
       "js": [
         "content/cursorOverlay.js",
         "content/annotationOverlay.js",
-        "content/actionExecutor.js"
+        "content/actionExecutor.js",
+        "onboarding/pageAnalyzer.js"
       ]
     }
   ]

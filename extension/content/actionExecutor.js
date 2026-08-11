@@ -31,6 +31,13 @@
   }
 
   async function executeAction(action = {}) {
+    // Check guest permissions before executing any action.
+    const denied = await checkPermission(action.type);
+    if (denied) {
+      flashAction({ type: `⛔ ${action.type} denied` });
+      return { ok: false, reason: `Permission denied: ${action.type}` };
+    }
+
     flashAction(action);
 
     if (action.type === 'read') {
@@ -65,6 +72,35 @@
     return { ok: false, reason: 'Unsupported action type' };
   }
 
+  /**
+   * Returns true if the action type is denied by the current session permissions.
+   * The read action is always allowed (non-destructive).
+   */
+  async function checkPermission(actionType) {
+    if (!actionType || actionType === 'read') return false;
+
+    const PERMISSION_MAP = {
+      click: 'canClick',
+      type: 'canType',
+      scroll: 'canScroll',
+      navigate: 'canNavigate',
+      highlight: 'canHighlight',
+      annotate: 'canAnnotate'
+    };
+
+    const permKey = PERMISSION_MAP[actionType];
+    if (!permKey) return false; // Unknown action types are handled elsewhere.
+
+    try {
+      const stored = await chrome.storage.local.get(['tabTwinSession']);
+      const permissions = stored.tabTwinSession?.permissions;
+      if (!permissions) return false; // No permissions stored — allow by default (host).
+      return permissions[permKey] === false;
+    } catch {
+      return false;
+    }
+  }
+
   function findElement(action) {
     if (action.selector) return document.querySelector(action.selector);
     if (Number.isFinite(action.x) && Number.isFinite(action.y)) return document.elementFromPoint(action.x, action.y);
@@ -93,6 +129,4 @@
   function delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
-
-  // TODO: Implement granular permission system before automatically executing guest click/type actions.
 })();

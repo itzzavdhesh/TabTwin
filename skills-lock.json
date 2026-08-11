@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "skills": {
+    "chrome-extensions": {
+      "source": "googlechrome/modern-web-guidance",
+      "sourceType": "github",
+      "skillPath": "skills/chrome-extensions/SKILL.md",
+      "computedHash": "6002884f2420d04a5ffde0ef95fe10f8c12bfdcdaa2c82ce49e3e67a3a14eee7",
+      "locallyModified": true,
+      "note": "Trimmed to the reference files relevant to TabTwin (MV3 service worker, content scripts, message passing, popup, tabs, storage, API calling, Prompt API). Web Store publishing and unused-API references removed."
+    },
+    "tailwind-design-system": {
+      "source": "local",
+      "sourceType": "vendored",
+      "skillPath": ".agents/skills/tailwind-design-system/SKILL.md",
+      "computedHash": "278cfdb78e094da71d38480ac7c12ef21e459546ca6991e74a3f53a75bbcee00",
+      "locallyModified": true,
+      "note": "Examples are Tailwind v4 CSS-first; TabTwin is on v3.4.4. SKILL.md carries a prominent v3 translation warning. Replaces the previously-listed mastra-ai tailwind-best-practices skill, which was scoped to packages/playground-ui and irrelevant here."
+    }
+  }
+}

@@ -2,19 +2,23 @@
 import { createHostWebRTC } from '../lib/webrtc.js';
 import { createCrdtBridge } from '../lib/crdt.js';
 import { runClaudeAgent } from '../lib/aiAgent.js';
+import { generateOnboardingGuidance } from '../onboarding/onboardingService.js';
 
-const API_URL = 'https://tabtwinserver-production.up.railway.app';
-const WS_URL = 'wss://tabtwinserver-production.up.railway.app';
+// Default to localhost for local development.
+// Production: 'https://tabtwinserver-production.up.railway.app'
+const API_URL = 'http://localhost:3001';
+// Production: 'wss://tabtwinserver-production.up.railway.app'
+const WS_URL = 'ws://localhost:3001';
 
 const state = {
   session: null,
   guests: [],
   activityLog: [],
   settings: {
-    anthropicApiKey: '',
     allowAgentClick: false,
     allowAgentType: false,
-    allowAgentNavigate: false
+    allowAgentNavigate: false,
+    enableAiOnboarding: false
   },
   socket: null,
   rtc: null,
@@ -117,7 +121,7 @@ async function startSession() {
     body: JSON.stringify({ hostName: 'Host' })
   });
   const session = await response.json();
-  state.session = { id: session.session_id, link: session.link };
+  state.session = { id: session.session_id, link: session.link, hostToken: session.host_token };
   state.guests = [];
   state.sessionStats = {
     totalActions: 0,
@@ -130,12 +134,37 @@ async function startSession() {
   addLog('Session started');
   connectSocket();
   await chrome.storage.local.set({ tabTwinSession: state.session });
+  try {
+    const response = await fetch(`${API_URL}/api/session/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hostName: 'Host' })
+    });
+    if (!response.ok) throw new Error(`Server error: ${response.status}`);
+    const session = await response.json();
+if (!session.session_id || !session.link) {
+  throw new Error('Invalid response from server: missing session_id or link');
+}
+state.session = { id: session.session_id, link: session.link };
+    state.session = { id: session.session_id, link: session.link };
+    state.guests = [];
+    addLog('Session started');
+    connectSocket();
+    await chrome.storage.local.set({ tabTwinSession: state.session });
+  } catch (err) {
+    addLog(`Failed to start session: ${err.message}`);
+  }
   return snapshot();
 }
 
 async function endSession() {
   if (state.session) {
-    await fetch(`${API_URL}/api/session/${state.session.id}`, { method: 'DELETE' }).catch(() => {});
+    await fetch(`${API_URL}/api/session/${state.session.id}`, { 
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${state.session.hostToken}`
+      }
+    }).catch(() => {});
   }
   state.finalSummary = {
     sessionId: state.session?.id || 'unknown',
@@ -156,19 +185,38 @@ async function endSession() {
   return snapshot();
 }
 
+let reconnectAttempts = 0;
+let reconnectTimeout = null;
+
 function connectSocket() {
   if (!state.session) return;
+
+  if (reconnectTimeout) clearTimeout(reconnectTimeout);
   state.socket?.close();
   state.socket = new WebSocket(WS_URL);
   state.rtc = createHostWebRTC({ sendSignal: sendSocket, onDataMessage: handleRealtimeMessage });
 
   state.socket.addEventListener('open', () => {
-    sendSocket('host:connect', { sessionId: state.session.id });
+    reconnectAttempts = 0;
+    sendSocket('host:connect', { sessionId: state.session.id, hostToken: state.session.hostToken });
   });
 
   state.socket.addEventListener('message', async (event) => {
     const message = JSON.parse(event.data);
     await handleServerEvent(message);
+  });
+
+  state.socket.addEventListener('close', () => {
+    if (!state.session) return; // Intentionally ended
+
+    if (reconnectAttempts < 5) {
+      const delay = Math.pow(2, reconnectAttempts + 1) * 1000;
+      reconnectAttempts++;
+      addLog(`Reconnecting (attempt ${reconnectAttempts})...`);
+      reconnectTimeout = setTimeout(connectSocket, delay);
+    } else {
+      addLog('Connection lost');
+    }
   });
 }
 
@@ -176,6 +224,9 @@ async function handleServerEvent({ event, payload = {} }) {
   if (event === 'session:joined') {
     state.guests = payload.guests || mergeGuest(payload.guest);
     addLog(`${payload.guest?.name || 'Guest'} joined`);
+    if (state.settings.enableAiOnboarding) {
+      await triggerOnboardingForGuest(payload.guest?.id);
+    }
     return;
   }
 
@@ -221,7 +272,8 @@ async function runAgent(command) {
   if (!state.session) return snapshot();
   const tabs = await collectOpenTabContent();
   const plan = await runClaudeAgent({
-    apiKey: state.settings.anthropicApiKey,
+    apiUrl: API_URL,
+    sessionId: state.session.id,
     command,
     tabs,
     permissions: {
@@ -247,6 +299,22 @@ async function runAgent(command) {
   }
 
   return snapshot();
+}
+
+async function triggerOnboardingForGuest(guestId) {
+  if (!guestId || !state.session) return;
+
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) return;
+
+  const summary = await chrome.tabs.sendMessage(tab.id, { type: 'onboarding:analyze' }).catch(() => null);
+  const guidance = await generateOnboardingGuidance({
+    summary: summary || {},
+    apiKey: state.settings.anthropicApiKey
+  });
+
+  sendSocket('onboarding:guidance', { guestId, guidance, summary, enabled: true });
+  await sendToActiveTab({ type: 'onboarding:highlight', payload: { guidance, summary } }).catch(() => {});
 }
 
 async function collectOpenTabContent() {
