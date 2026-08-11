@@ -1,0 +1,97 @@
+version: 2
+updates:
+  # ── GitHub Actions ──────────────────────────────────────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Kolkata"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore(deps)"
+    reviewers:
+      - "itzzavdhesh"
+
+  # ── Root package.json (monorepo tooling: husky, commitlint, prettier) ───────
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Kolkata"
+    labels:
+      - "dependencies"
+      - "npm"
+    commit-message:
+      prefix: "chore(deps)"
+    reviewers:
+      - "itzzavdhesh"
+    ignore:
+      # Avoid major version bumps that could break the monorepo toolchain
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # ── Server workspace (Node.js / Express) ────────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/server"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Kolkata"
+    labels:
+      - "dependencies"
+      - "npm"
+      - "server"
+    commit-message:
+      prefix: "chore(deps)"
+    reviewers:
+      - "itzzavdhesh"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # ── Webapp workspace (React / Vite) ─────────────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/webapp"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Kolkata"
+    labels:
+      - "dependencies"
+      - "npm"
+      - "webapp"
+    commit-message:
+      prefix: "chore(deps)"
+    reviewers:
+      - "itzzavdhesh"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # ── Extension workspace (Chrome Extension / Vite + React) ───────────────────
+  - package-ecosystem: "npm"
+    directory: "/extension"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Kolkata"
+    labels:
+      - "dependencies"
+      - "npm"
+      - "extension"
+    commit-message:
+      prefix: "chore(deps)"
+    reviewers:
+      - "itzzavdhesh"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
