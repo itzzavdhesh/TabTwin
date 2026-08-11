@@ -32,14 +32,6 @@ jobs:
       - name: Install root dependencies
         run: npm ci
 
-      - name: Install webapp dependencies
-        run: npm ci
-        working-directory: webapp
-
-      - name: Install extension dependencies
-        run: npm ci
-        working-directory: extension
-
       - name: Build webapp (React / Vite)
         run: npm run build
         working-directory: webapp
@@ -54,9 +46,9 @@ jobs:
           # Package webapp build
           zip -r release-artifacts/tabtwin-webapp-${{ github.ref_name }}.zip webapp/dist/
           # Package extension build (ready for Chrome Web Store upload)
-          zip -r release-artifacts/tabtwin-extension-${{ github.ref_name }}.zip extension/dist/
-          # Package server source (Node.js, runs directly)
-          zip -r release-artifacts/tabtwin-server-${{ github.ref_name }}.zip server/ --exclude "*/node_modules/*"
+          zip -r release-artifacts/tabtwin-extension-${{ github.ref_name }}.zip extension/ --exclude "*/node_modules/*" "*/src/*" "*/.git/*"
+          # Package server source (Node.js, ready to deploy with node_modules included)
+          zip -r release-artifacts/tabtwin-server-${{ github.ref_name }}.zip server/
 
       - name: Upload release artifacts for publish job
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
