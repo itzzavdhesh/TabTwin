@@ -22,14 +22,15 @@ Public disclosure of a vulnerability before a fix is available puts all users at
 
 ### How to Report
 
-1. **Email (preferred):** Send a detailed report to the maintainer directly via GitHub.
-   - Navigate to [@itzzavdhesh's GitHub profile](https://github.com/itzzavdhesh)
-   - Use the **"Contact"** link or send a private message
+**GitHub Private Vulnerability Reporting (the only supported private channel):**
 
-2. **GitHub Private Vulnerability Reporting (recommended):**
-   - Go to the [Security tab](https://github.com/itzzavdhesh/TabTwin/security) of this repository
-   - Click **"Report a vulnerability"**
-   - Fill in the private advisory form
+1. Go to the [Security tab](https://github.com/itzzavdhesh/TabTwin/security) of this repository
+2. Click **"Report a vulnerability"**
+3. Fill in the private advisory form — your report will be visible only to the maintainer
+
+> [!NOTE]
+> Do **not** use GitHub profile DMs, public Issues, or any other channel — GitHub's
+> Private Vulnerability Reporting is the only reliable, encrypted private channel available.
 
 ### What to Include in Your Report
 
