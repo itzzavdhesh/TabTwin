@@ -4,6 +4,13 @@
 
 TabTwin enables real-time collaboration directly inside a browser tab. A host can share a browser session with guests, allowing them to see the same tab, move ghost cursors, add annotations, and request actions while the host remains in control.
 
+![Node.js](https://img.shields.io/badge/Node.js-20+-339933?logo=node.js&logoColor=white)
+![React](https://img.shields.io/badge/React-18-61dafb?logo=react&logoColor=111827)
+![Vite](https://img.shields.io/badge/Vite-5-646cff?logo=vite&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-38bdf8?logo=tailwindcss&logoColor=white)
+![Chrome MV3](https://img.shields.io/badge/Chrome-MV3-4285f4?logo=googlechrome&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT111827)
+
 ---
 
 ## ✨ Features
