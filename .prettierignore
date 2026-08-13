@@ -1,0 +1,15 @@
+# Build artifacts
+dist/
+build/
+
+# Dependencies
+node_modules/
+
+# Lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Log files
+*.log
+npm-debug.log*
