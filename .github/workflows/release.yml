@@ -1,0 +1,86 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+# Deny all permissions at the workflow level by default.
+# Write access is granted only to the specific job that needs it.
+permissions:
+  contents: read
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Job 1: Build all monorepo workspaces and archive the release artifacts.
+  # Runs with read-only permissions — no secrets or write tokens needed.
+  # ─────────────────────────────────────────────────────────────────────────────
+  build:
+    name: Build monorepo workspaces
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Build webapp (React / Vite)
+        run: npm run build
+        working-directory: webapp
+
+      - name: Build extension (Chrome Extension / Vite)
+        run: npm run build
+        working-directory: extension
+
+      - name: Archive all release artifacts
+        run: |
+          mkdir -p release-artifacts
+          # Package webapp build
+          zip -r release-artifacts/tabtwin-webapp-${{ github.ref_name }}.zip webapp/dist/
+          # Package extension build (ready for Chrome Web Store upload)
+          zip -r release-artifacts/tabtwin-extension-${{ github.ref_name }}.zip extension/ --exclude "*/node_modules/*" "*/src/*" "*/.git/*"
+          # Package server source (Node.js, ready to deploy with node_modules included)
+          zip -r release-artifacts/tabtwin-server-${{ github.ref_name }}.zip server/
+
+      - name: Upload release artifacts for publish job
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-artifacts
+          path: release-artifacts/
+          retention-days: 1
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Job 2: Publish the GitHub Release.
+  # Granted `contents: write` ONLY here, isolated from the build environment.
+  # ─────────────────────────────────────────────────────────────────────────────
+  publish:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-artifacts
+          path: release-artifacts/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v2.3.2
+        with:
+          files: |
+            release-artifacts/tabtwin-webapp-${{ github.ref_name }}.zip
+            release-artifacts/tabtwin-extension-${{ github.ref_name }}.zip
+            release-artifacts/tabtwin-server-${{ github.ref_name }}.zip
+          generate_release_notes: true
+          fail_on_unmatched_files: true
