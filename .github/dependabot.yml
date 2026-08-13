@@ -1,0 +1,42 @@
+version: 2
+updates:
+  # ── GitHub Actions ──────────────────────────────────────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Kolkata"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore(deps)"
+    reviewers:
+      - "itzzavdhesh"
+
+  # ── Root npm (monorepo) ──────────────────────────────────────────────────────
+  # A single root npm updater is correct for an npm-workspaces monorepo.
+  # The root package-lock.json is the only lockfile; per-workspace updaters
+  # would only edit the workspace package.json without rewriting the shared
+  # lockfile, leaving it stale and risking npm install failures.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Kolkata"
+    versioning-strategy: increase
+    labels:
+      - "dependencies"
+      - "npm"
+    commit-message:
+      prefix: "chore(deps)"
+    reviewers:
+      - "itzzavdhesh"
+    ignore:
+      # Avoid major version bumps that could break the monorepo toolchain
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
