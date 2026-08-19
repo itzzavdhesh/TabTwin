@@ -67,9 +67,14 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
 
     switch (event) {
       case 'host:connect': {
-        const hash = payload.hostToken ? crypto.createHash('sha256').update(payload.hostToken).digest('hex') : null;
+        const hash = payload.hostToken
+          ? crypto.createHash('sha256').update(payload.hostToken).digest('hex')
+          : null;
         if (!session || hash !== session.hostTokenHash) {
-          safeSend(socket, { event: 'error', payload: { message: 'Unauthorized or session not found.' } });
+          safeSend(socket, {
+            event: 'error',
+            payload: { message: 'Unauthorized or session not found.' },
+          });
           return;
         }
 
@@ -82,13 +87,16 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
         socket.tabTwin = { role: 'host', sessionId: nextSession.id, guestId: null };
         safeSend(socket, {
           event: 'host:connected',
-          payload: { sessionId: nextSession.id, guests: publicGuests(nextSession) }
+          payload: { sessionId: nextSession.id, guests: publicGuests(nextSession) },
         });
         return;
       }
 
       case 'session:join': {
-        const safeName = String(payload.name || '').trim().slice(0, 40) || 'Guest';
+        const safeName =
+          String(payload.name || '')
+            .trim()
+            .slice(0, 40) || 'Guest';
         const joined = await sessions.addGuest(payload.sessionId, socket, { name: safeName });
         if (!joined) {
           safeSend(socket, { event: 'error', payload: { message: 'Session not found.' } });
@@ -98,7 +106,7 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
         socket.tabTwin = {
           role: 'guest',
           sessionId: joined.session.id,
-          guestId: joined.guest.id
+          guestId: joined.guest.id,
         };
 
         safeSend(socket, {
@@ -106,15 +114,15 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
           payload: {
             sessionId: joined.session.id,
             guest: publicGuest(joined.guest),
-            permissions: joined.guest.permissions
-          }
+            permissions: joined.guest.permissions,
+          },
         });
 
         // Notify host (might be remote)
         const hostTarget = joined.session.hostSocket;
         const hostMessage = {
           event: 'session:joined',
-          payload: { guest: publicGuest(joined.guest), guests: publicGuests(joined.session) }
+          payload: { guest: publicGuest(joined.guest), guests: publicGuests(joined.session) },
         };
 
         if (hostTarget) {
@@ -123,7 +131,7 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
           publishToRemote(joined.session.hostServerId, {
             sessionId: joined.session.id,
             event: hostMessage.event,
-            payload: hostMessage.payload
+            payload: hostMessage.payload,
           });
         }
         return;
@@ -144,19 +152,22 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
             scroll: perms.canScroll,
             navigate: perms.canNavigate,
             highlight: perms.canHighlight,
-            annotate: perms.canAnnotate
+            annotate: perms.canAnnotate,
           };
 
           if (!(actionType in permissionMap) || !permissionMap[actionType]) {
             safeSend(socket, {
               event: 'error',
-              payload: { message: `Permission denied: ${actionType} is not allowed.` }
+              payload: { message: `Permission denied: ${actionType} is not allowed.` },
             });
             return;
           }
         }
 
-        const target = socket.tabTwin.role === 'host' ? findGuestSocket(session, payload.guestId) : session.hostSocket;
+        const target =
+          socket.tabTwin.role === 'host'
+            ? findGuestSocket(session, payload.guestId)
+            : session.hostSocket;
         safeSend(target, { event, payload: withSender(socket, payload) });
         return;
       }
@@ -172,7 +183,7 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
         const targetGuestId = payload.guestId;
 
         if (isHost) {
-          const guest = session.guests.find(g => g.id === targetGuestId);
+          const guest = session.guests.find((g) => g.id === targetGuestId);
           if (!guest) return;
 
           if (guest.socket) {
@@ -182,7 +193,7 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
               sessionId: session.id,
               guestId: guest.id,
               event,
-              payload: withSender(socket, payload)
+              payload: withSender(socket, payload),
             });
           }
         } else {
@@ -192,7 +203,7 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
             publishToRemote(session.hostServerId, {
               sessionId: session.id,
               event,
-              payload: withSender(socket, payload)
+              payload: withSender(socket, payload),
             });
           }
         }
@@ -208,7 +219,7 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
         const targetGuestId = payload.guestId;
 
         if (targetGuestId) {
-          const guest = session.guests.find(g => g.id === targetGuestId);
+          const guest = session.guests.find((g) => g.id === targetGuestId);
           if (guest?.socket) {
             safeSend(guest.socket, msg);
           } else if (guest?.serverId) {
@@ -216,7 +227,7 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
               sessionId: session.id,
               guestId: guest.id,
               event,
-              payload: msg.payload
+              payload: msg.payload,
             });
           }
         } else {
@@ -235,10 +246,66 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
               sessionId: session.id,
               guestId: 'broadcast',
               event,
-              payload: msg.payload
+              payload: msg.payload,
             });
           }
         }
+        return;
+      }
+
+      case 'chat:message': {
+        if (!session) return;
+
+        const content = String(payload.content || '')
+          .trim()
+          .slice(0, 500);
+        if (!content) return;
+
+        const isHost = socket.tabTwin.role === 'host';
+        const senderGuest = !isHost
+          ? session.guests.find((g) => g.id === socket.tabTwin.guestId)
+          : null;
+
+        // Chat is relayed in-memory only and never written to the session
+        // object (which is persisted to Redis) or the activity log, so no
+        // chat content exists server-side once the message has been
+        // forwarded — it is ephemeral by construction, not by cleanup.
+        const chatMessage = {
+          id: crypto.randomUUID(),
+          senderId: isHost ? 'host' : socket.tabTwin.guestId,
+          senderName: isHost ? session.hostName || 'Host' : senderGuest?.name || 'Guest',
+          senderRole: isHost ? 'host' : 'guest',
+          content,
+          timestamp: Date.now(),
+        };
+
+        broadcastToSession(session, { event: 'chat:message', payload: chatMessage });
+        return;
+      }
+
+      case 'chat:reaction': {
+        if (!session) return;
+
+        const emoji = String(payload.emoji || '')
+          .trim()
+          .slice(0, 8);
+        const messageId = String(payload.messageId || '').trim();
+        if (!emoji || !messageId) return;
+
+        const isHost = socket.tabTwin.role === 'host';
+        const senderGuest = !isHost
+          ? session.guests.find((g) => g.id === socket.tabTwin.guestId)
+          : null;
+
+        broadcastToSession(session, {
+          event: 'chat:reaction',
+          payload: {
+            messageId,
+            emoji,
+            senderId: isHost ? 'host' : socket.tabTwin.guestId,
+            senderName: isHost ? session.hostName || 'Host' : senderGuest?.name || 'Guest',
+          },
+        });
         return;
       }
 
@@ -249,8 +316,8 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
           payload: {
             command: payload.command,
             actions: payload.actions || [],
-            summary: payload.summary || 'Agent command received.'
-          }
+            summary: payload.summary || 'Agent command received.',
+          },
         };
 
         if (session.hostSocket) {
@@ -259,7 +326,7 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
           publishToRemote(session.hostServerId, {
             sessionId: session.id,
             event: msg.event,
-            payload: msg.payload
+            payload: msg.payload,
           });
         }
         return;
@@ -271,9 +338,46 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
   }
 
   function publishToRemote(targetServerId, message) {
-    redisClient.publish(`tabtwin:server:${targetServerId}`, JSON.stringify(message)).catch((err) => {
-      console.error(`[TabTwin] Failed to publish message to remote server ${targetServerId}:`, err.message);
-    });
+    redisClient
+      .publish(`tabtwin:server:${targetServerId}`, JSON.stringify(message))
+      .catch((err) => {
+        console.error(
+          `[TabTwin] Failed to publish message to remote server ${targetServerId}:`,
+          err.message,
+        );
+      });
+  }
+
+  /**
+   * Delivers a message to every participant in a session — the host and
+   * every guest — whether their socket lives on this server instance or a
+   * remote one. Used for session-wide broadcasts like chat, where everyone
+   * (not just "the other guests" or "just the host") needs the message.
+   */
+  function broadcastToSession(session, { event, payload }) {
+    if (session.hostSocket) {
+      safeSend(session.hostSocket, { event, payload });
+    } else if (session.hostServerId) {
+      publishToRemote(session.hostServerId, { sessionId: session.id, event, payload });
+    }
+
+    const remoteGuestServers = new Set();
+    for (const guest of session.guests) {
+      if (guest.socket) {
+        safeSend(guest.socket, { event, payload });
+      } else if (guest.serverId) {
+        remoteGuestServers.add(guest.serverId);
+      }
+    }
+
+    for (const remoteServerId of remoteGuestServers) {
+      publishToRemote(remoteServerId, {
+        sessionId: session.id,
+        guestId: 'broadcast',
+        event,
+        payload,
+      });
+    }
   }
 
   return { handleConnection };
@@ -284,7 +388,7 @@ export function publicGuest(guest) {
     id: guest.id,
     name: guest.name,
     color: guest.color,
-    permissions: guest.permissions
+    permissions: guest.permissions,
   };
 }
 
@@ -292,7 +396,7 @@ export function withSender(socket, payload) {
   return {
     ...payload,
     senderRole: socket.tabTwin.role,
-    guestId: payload.guestId || socket.tabTwin.guestId
+    guestId: payload.guestId || socket.tabTwin.guestId,
   };
 }
 
