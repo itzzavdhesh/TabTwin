@@ -18,17 +18,17 @@ const state = {
     allowAgentClick: false,
     allowAgentType: false,
     allowAgentNavigate: false,
-    enableAiOnboarding: false
+    enableAiOnboarding: false,
   },
   socket: null,
   rtc: null,
   crdt: createCrdtBridge(),
   agentPlan: null,
   sessionStats: null,
-  finalSummary: null
+  finalSummary: null,
+  recordingActive: false,
 };
 
-// TODO: Add session recording/playback feature for reviewed collaboration sessions.
 // TODO: Add voice chat layer between host and guest during session.
 // TODO: Add mobile companion app with view-only mode.
 // TODO: Allow guests to install the extension mid-session to upgrade from view-only to full tab access.
@@ -56,6 +56,16 @@ async function handleMessage(message, sender) {
       sendSocket('control:revoke', { guestId: message.payload.guestId });
       addLog('Control revoked');
       return snapshot();
+    case 'recording:start':
+      state.recordingActive = true;
+      sendSocket('recording:control', { enabled: true });
+      addLog('Recording started');
+      return snapshot();
+    case 'recording:stop':
+      state.recordingActive = false;
+      sendSocket('recording:control', { enabled: false });
+      addLog('Recording stopped');
+      return snapshot();
     case 'agent:run':
       return runAgent(message.payload.command);
     case 'agent:confirm-action':
@@ -71,7 +81,8 @@ async function handleMessage(message, sender) {
         const action = state.agentPlan.actions[state.agentPlan.currentIndex];
         addLog(`Skipped agent action: ${action.type}`);
         state.agentPlan.currentIndex += 1;
-        state.agentPlan.status = state.agentPlan.currentIndex < state.agentPlan.actions.length ? 'executing' : 'completed';
+        state.agentPlan.status =
+          state.agentPlan.currentIndex < state.agentPlan.actions.length ? 'executing' : 'completed';
         if (state.agentPlan.status === 'executing') {
           executeNextAgentAction();
         } else {
@@ -118,16 +129,17 @@ async function startSession() {
   const response = await fetch(`${API_URL}/api/session/create`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ hostName: 'Host' })
+    body: JSON.stringify({ hostName: 'Host' }),
   });
   const session = await response.json();
   state.session = { id: session.session_id, link: session.link, hostToken: session.host_token };
   state.guests = [];
+  state.recordingActive = false;
   state.sessionStats = {
     totalActions: 0,
     averageConfidence: 0,
     confidenceSum: 0,
-    lowConfidenceActions: []
+    lowConfidenceActions: [],
   };
   state.finalSummary = null;
   state.agentPlan = null;
@@ -138,16 +150,17 @@ async function startSession() {
     const response = await fetch(`${API_URL}/api/session/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ hostName: 'Host' })
+      body: JSON.stringify({ hostName: 'Host' }),
     });
     if (!response.ok) throw new Error(`Server error: ${response.status}`);
     const session = await response.json();
-if (!session.session_id || !session.link) {
-  throw new Error('Invalid response from server: missing session_id or link');
-}
-state.session = { id: session.session_id, link: session.link };
+    if (!session.session_id || !session.link) {
+      throw new Error('Invalid response from server: missing session_id or link');
+    }
+    state.session = { id: session.session_id, link: session.link };
     state.session = { id: session.session_id, link: session.link };
     state.guests = [];
+    state.recordingActive = false;
     addLog('Session started');
     connectSocket();
     await chrome.storage.local.set({ tabTwinSession: state.session });
@@ -159,24 +172,27 @@ state.session = { id: session.session_id, link: session.link };
 
 async function endSession() {
   if (state.session) {
-    await fetch(`${API_URL}/api/session/${state.session.id}`, { 
+    await fetch(`${API_URL}/api/session/${state.session.id}`, {
       method: 'DELETE',
       headers: {
-        'Authorization': `Bearer ${state.session.hostToken}`
-      }
+        Authorization: `Bearer ${state.session.hostToken}`,
+      },
     }).catch(() => {});
   }
   state.finalSummary = {
     sessionId: state.session?.id || 'unknown',
     endedAt: new Date().toISOString(),
     totalActions: state.sessionStats?.totalActions || 0,
-    averageConfidence: state.sessionStats?.averageConfidence ? Number(state.sessionStats.averageConfidence.toFixed(2)) : 0,
-    lowConfidenceActions: state.sessionStats?.lowConfidenceActions || []
+    averageConfidence: state.sessionStats?.averageConfidence
+      ? Number(state.sessionStats.averageConfidence.toFixed(2))
+      : 0,
+    lowConfidenceActions: state.sessionStats?.lowConfidenceActions || [],
   };
   state.socket?.close();
   state.socket = null;
   state.session = null;
   state.guests = [];
+  state.recordingActive = false;
   state.rtc = null;
   state.agentPlan = null;
   state.sessionStats = null;
@@ -264,8 +280,10 @@ async function handleServerEvent({ event, payload = {} }) {
 }
 
 function handleRealtimeMessage(message) {
-  if (message.event === 'cursor:move') sendToActiveTab({ type: 'cursor:move', payload: message.payload });
-  if (message.event === 'action:request') sendToActiveTab({ type: 'action:request', payload: message.payload });
+  if (message.event === 'cursor:move')
+    sendToActiveTab({ type: 'cursor:move', payload: message.payload });
+  if (message.event === 'action:request')
+    sendToActiveTab({ type: 'action:request', payload: message.payload });
 }
 
 async function runAgent(command) {
@@ -279,8 +297,8 @@ async function runAgent(command) {
     permissions: {
       click: state.settings.allowAgentClick,
       type: state.settings.allowAgentType,
-      navigate: state.settings.allowAgentNavigate
-    }
+      navigate: state.settings.allowAgentNavigate,
+    },
   });
 
   state.agentPlan = {
@@ -288,7 +306,7 @@ async function runAgent(command) {
     summary: plan.summary,
     actions: plan.actions,
     currentIndex: 0,
-    status: plan.actions.length > 0 ? 'executing' : 'completed'
+    status: plan.actions.length > 0 ? 'executing' : 'completed',
   };
 
   addLog(plan.summary || 'Agent plan ready');
@@ -307,14 +325,18 @@ async function triggerOnboardingForGuest(guestId) {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id) return;
 
-  const summary = await chrome.tabs.sendMessage(tab.id, { type: 'onboarding:analyze' }).catch(() => null);
+  const summary = await chrome.tabs
+    .sendMessage(tab.id, { type: 'onboarding:analyze' })
+    .catch(() => null);
   const guidance = await generateOnboardingGuidance({
     summary: summary || {},
-    apiKey: state.settings.anthropicApiKey
+    apiKey: state.settings.anthropicApiKey,
   });
 
   sendSocket('onboarding:guidance', { guestId, guidance, summary, enabled: true });
-  await sendToActiveTab({ type: 'onboarding:highlight', payload: { guidance, summary } }).catch(() => {});
+  await sendToActiveTab({ type: 'onboarding:highlight', payload: { guidance, summary } }).catch(
+    () => {},
+  );
 }
 
 async function collectOpenTabContent() {
@@ -326,7 +348,7 @@ async function collectOpenTabContent() {
     try {
       const [injection] = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
-        func: () => document.body?.innerText?.slice(0, 12000) || ''
+        func: () => document.body?.innerText?.slice(0, 12000) || '',
       });
       content = injection?.result || '';
     } catch {
@@ -347,7 +369,9 @@ async function sendToActiveTab(message) {
 
 function sendSocket(event, payload = {}) {
   if (!state.socket || state.socket.readyState !== WebSocket.OPEN) return;
-  state.socket.send(JSON.stringify({ event, payload: { sessionId: state.session?.id, ...payload } }));
+  state.socket.send(
+    JSON.stringify({ event, payload: { sessionId: state.session?.id, ...payload } }),
+  );
 }
 
 function mergeGuest(guest) {
@@ -368,7 +392,8 @@ function snapshot() {
     settings: state.settings,
     agentPlan: state.agentPlan,
     sessionStats: state.sessionStats,
-    finalSummary: state.finalSummary
+    finalSummary: state.finalSummary,
+    recordingActive: state.recordingActive,
   };
 }
 
@@ -379,7 +404,9 @@ async function executeNextAgentAction() {
   if (currentIndex >= actions.length) {
     state.agentPlan.status = 'completed';
     addLog('Agent plan execution completed');
-    chrome.runtime.sendMessage({ type: 'popup:state-changed', payload: snapshot() }).catch(() => {});
+    chrome.runtime
+      .sendMessage({ type: 'popup:state-changed', payload: snapshot() })
+      .catch(() => {});
     return;
   }
 
@@ -388,7 +415,9 @@ async function executeNextAgentAction() {
   if (action.confidence < 0.6 && !action.confirmed) {
     state.agentPlan.status = 'pending_confirmation';
     addLog(`Action pending host confirmation: ${action.type}`);
-    chrome.runtime.sendMessage({ type: 'popup:state-changed', payload: snapshot() }).catch(() => {});
+    chrome.runtime
+      .sendMessage({ type: 'popup:state-changed', payload: snapshot() })
+      .catch(() => {});
     return;
   }
 
@@ -402,21 +431,22 @@ function updateSessionStats(action) {
       totalActions: 0,
       averageConfidence: 0,
       confidenceSum: 0,
-      lowConfidenceActions: []
+      lowConfidenceActions: [],
     };
   }
-  
+
   if (typeof action.confidence === 'number') {
     state.sessionStats.totalActions += 1;
     state.sessionStats.confidenceSum += action.confidence;
-    state.sessionStats.averageConfidence = state.sessionStats.confidenceSum / state.sessionStats.totalActions;
-    
+    state.sessionStats.averageConfidence =
+      state.sessionStats.confidenceSum / state.sessionStats.totalActions;
+
     if (action.confidence < 0.6) {
       state.sessionStats.lowConfidenceActions.push({
         type: action.type,
         confidence: action.confidence,
         timestamp: Date.now(),
-        details: action.selector || action.url || action.text || ''
+        details: action.selector || action.url || action.text || '',
       });
     }
   }

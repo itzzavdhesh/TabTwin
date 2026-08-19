@@ -8,6 +8,7 @@ export class PlaybackEngine {
     this.playbackTimer = null;
     this.renderer = null;
     this.onProgress = null;
+    this.onReset = null;
     this.playbackCursor = 0;
   }
 
@@ -22,13 +23,15 @@ export class PlaybackEngine {
     }
 
     this.recording = recording;
-    this.events = recording.events
-      .slice()
-      .sort((left, right) => {
-        const leftTime = Number.isFinite(left.relativeTimestamp) ? left.relativeTimestamp : left.timestamp;
-        const rightTime = Number.isFinite(right.relativeTimestamp) ? right.relativeTimestamp : right.timestamp;
-        return leftTime - rightTime;
-      });
+    this.events = recording.events.slice().sort((left, right) => {
+      const leftTime = Number.isFinite(left.relativeTimestamp)
+        ? left.relativeTimestamp
+        : left.timestamp;
+      const rightTime = Number.isFinite(right.relativeTimestamp)
+        ? right.relativeTimestamp
+        : right.timestamp;
+      return leftTime - rightTime;
+    });
     this.currentTime = 0;
     this.state = 'paused';
     this.playbackCursor = 0;
@@ -53,12 +56,24 @@ export class PlaybackEngine {
     this.play();
   }
 
+  // Seeking replays every event from the start up to the target timestamp
+  // instantly, rather than just jumping the cursor index, so that visual
+  // state (cursor position, annotations placed so far) is correctly
+  // reconstructed regardless of whether the seek moves forward or backward.
   seek(milliseconds) {
     const nextTime = Math.max(0, Number(milliseconds) || 0);
-    this.currentTime = nextTime;
-    this.playbackCursor = this.findCursorIndex(nextTime);
     this.state = 'paused';
     this.stopTimer();
+
+    this.onReset?.();
+    let cursor = 0;
+    while (cursor < this.events.length && this.events[cursor].relativeTimestamp <= nextTime) {
+      this.renderEvent(this.events[cursor]);
+      cursor += 1;
+    }
+
+    this.currentTime = nextTime;
+    this.playbackCursor = cursor;
     this.notifyProgress();
   }
 
@@ -80,6 +95,13 @@ export class PlaybackEngine {
 
   setOnProgress(callback) {
     this.onProgress = callback;
+  }
+
+  // Called once at the start of a seek, before any events are replayed, so
+  // the consumer can clear accumulated visual state (cursor positions,
+  // placed annotations) and rebuild it from the replay that follows.
+  setOnReset(callback) {
+    this.onReset = callback;
   }
 
   advance() {
@@ -121,7 +143,10 @@ export class PlaybackEngine {
 
   getDuration() {
     if (!this.events.length) return 0;
-    return this.events[this.events.length - 1].relativeTimestamp ?? this.events[this.events.length - 1].timestamp;
+    return (
+      this.events[this.events.length - 1].relativeTimestamp ??
+      this.events[this.events.length - 1].timestamp
+    );
   }
 
   stopTimer() {
@@ -138,14 +163,5 @@ export class PlaybackEngine {
 
   notifyProgress() {
     this.onProgress?.(this.currentTime);
-  }
-
-  findCursorIndex(time) {
-    const targetTime = Math.max(0, Number(time) || 0);
-    let index = 0;
-    while (index < this.events.length && this.events[index].relativeTimestamp < targetTime) {
-      index += 1;
-    }
-    return Math.max(0, index);
   }
 }
