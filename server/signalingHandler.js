@@ -2,6 +2,20 @@
 import crypto from 'node:crypto';
 import { publicGuests, safeSend } from './sessionManager.js';
 
+/**
+ * Rejects an event sent by a viewer with a 403-style error and closes the
+ * socket with a custom close frame, matching the issue's acceptance
+ * criteria of "a viewer sending an annotation or cursor message receives a
+ * 403 WebSocket close frame."
+ */
+function rejectViewerMessage(socket, event) {
+  safeSend(socket, {
+    event: 'error',
+    payload: { message: `Permission denied: viewers cannot send ${event} events.` },
+  });
+  socket.close?.(4403, 'Viewers are observe-only');
+}
+
 export function createSignalingHandler({ sessions, redisClient, redisSub, serverId }) {
   const SERVER_CHANNEL = `tabtwin:server:${serverId}`;
 
@@ -67,9 +81,14 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
 
     switch (event) {
       case 'host:connect': {
-        const hash = payload.hostToken ? crypto.createHash('sha256').update(payload.hostToken).digest('hex') : null;
+        const hash = payload.hostToken
+          ? crypto.createHash('sha256').update(payload.hostToken).digest('hex')
+          : null;
         if (!session || hash !== session.hostTokenHash) {
-          safeSend(socket, { event: 'error', payload: { message: 'Unauthorized or session not found.' } });
+          safeSend(socket, {
+            event: 'error',
+            payload: { message: 'Unauthorized or session not found.' },
+          });
           return;
         }
 
@@ -82,23 +101,34 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
         socket.tabTwin = { role: 'host', sessionId: nextSession.id, guestId: null };
         safeSend(socket, {
           event: 'host:connected',
-          payload: { sessionId: nextSession.id, guests: publicGuests(nextSession) }
+          payload: { sessionId: nextSession.id, guests: publicGuests(nextSession) },
         });
         return;
       }
 
       case 'session:join': {
-        const safeName = String(payload.name || '').trim().slice(0, 40) || 'Guest';
-        const joined = await sessions.addGuest(payload.sessionId, socket, { name: safeName });
+        const safeName =
+          String(payload.name || '')
+            .trim()
+            .slice(0, 40) || 'Guest';
+        const viewerToken = typeof payload.viewerToken === 'string' ? payload.viewerToken : null;
+        const joined = await sessions.addGuest(payload.sessionId, socket, {
+          name: safeName,
+          viewerToken,
+        });
         if (!joined) {
           safeSend(socket, { event: 'error', payload: { message: 'Session not found.' } });
           return;
         }
 
+        // socket.tabTwin.role stays 'guest' for connection-routing purposes
+        // (host vs. guest socket); the finer-grained viewer/co-host
+        // distinction lives in joined.guest.role and is re-checked from the
+        // session on every message, so it can never be spoofed once assigned.
         socket.tabTwin = {
           role: 'guest',
           sessionId: joined.session.id,
-          guestId: joined.guest.id
+          guestId: joined.guest.id,
         };
 
         safeSend(socket, {
@@ -106,15 +136,15 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
           payload: {
             sessionId: joined.session.id,
             guest: publicGuest(joined.guest),
-            permissions: joined.guest.permissions
-          }
+            permissions: joined.guest.permissions,
+          },
         });
 
         // Notify host (might be remote)
         const hostTarget = joined.session.hostSocket;
         const hostMessage = {
           event: 'session:joined',
-          payload: { guest: publicGuest(joined.guest), guests: publicGuests(joined.session) }
+          payload: { guest: publicGuest(joined.guest), guests: publicGuests(joined.session) },
         };
 
         if (hostTarget) {
@@ -123,7 +153,7 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
           publishToRemote(joined.session.hostServerId, {
             sessionId: joined.session.id,
             event: hostMessage.event,
-            payload: hostMessage.payload
+            payload: hostMessage.payload,
           });
         }
         return;
@@ -135,6 +165,12 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
         // Enforce guest permissions server-side before forwarding to the host.
         if (socket.tabTwin.role === 'guest') {
           const guest = session.guests.find((g) => g.id === socket.tabTwin.guestId);
+
+          if (guest?.role === 'viewer') {
+            rejectViewerMessage(socket, event);
+            return;
+          }
+
           const perms = guest?.permissions || {};
           const actionType = payload.type;
 
@@ -144,19 +180,22 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
             scroll: perms.canScroll,
             navigate: perms.canNavigate,
             highlight: perms.canHighlight,
-            annotate: perms.canAnnotate
+            annotate: perms.canAnnotate,
           };
 
           if (!(actionType in permissionMap) || !permissionMap[actionType]) {
             safeSend(socket, {
               event: 'error',
-              payload: { message: `Permission denied: ${actionType} is not allowed.` }
+              payload: { message: `Permission denied: ${actionType} is not allowed.` },
             });
             return;
           }
         }
 
-        const target = socket.tabTwin.role === 'host' ? findGuestSocket(session, payload.guestId) : session.hostSocket;
+        const target =
+          socket.tabTwin.role === 'host'
+            ? findGuestSocket(session, payload.guestId)
+            : session.hostSocket;
         safeSend(target, { event, payload: withSender(socket, payload) });
         return;
       }
@@ -171,8 +210,19 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
         const isHost = socket.tabTwin.role === 'host';
         const targetGuestId = payload.guestId;
 
+        // A viewer can receive host cursor/annotation updates (handled in
+        // the isHost branch below) but is never allowed to originate a
+        // cursor move or an annotation of their own.
+        if (!isHost && (event === 'cursor:move' || event === 'crdt:update')) {
+          const guest = session.guests.find((g) => g.id === socket.tabTwin.guestId);
+          if (guest?.role === 'viewer') {
+            rejectViewerMessage(socket, event);
+            return;
+          }
+        }
+
         if (isHost) {
-          const guest = session.guests.find(g => g.id === targetGuestId);
+          const guest = session.guests.find((g) => g.id === targetGuestId);
           if (!guest) return;
 
           if (guest.socket) {
@@ -182,7 +232,7 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
               sessionId: session.id,
               guestId: guest.id,
               event,
-              payload: withSender(socket, payload)
+              payload: withSender(socket, payload),
             });
           }
         } else {
@@ -192,7 +242,7 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
             publishToRemote(session.hostServerId, {
               sessionId: session.id,
               event,
-              payload: withSender(socket, payload)
+              payload: withSender(socket, payload),
             });
           }
         }
@@ -208,7 +258,7 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
         const targetGuestId = payload.guestId;
 
         if (targetGuestId) {
-          const guest = session.guests.find(g => g.id === targetGuestId);
+          const guest = session.guests.find((g) => g.id === targetGuestId);
           if (guest?.socket) {
             safeSend(guest.socket, msg);
           } else if (guest?.serverId) {
@@ -216,7 +266,7 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
               sessionId: session.id,
               guestId: guest.id,
               event,
-              payload: msg.payload
+              payload: msg.payload,
             });
           }
         } else {
@@ -235,9 +285,44 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
               sessionId: session.id,
               guestId: 'broadcast',
               event,
-              payload: msg.payload
+              payload: msg.payload,
             });
           }
+        }
+        return;
+      }
+
+      case 'guest:promote': {
+        if (!session || socket.tabTwin.role !== 'host') return;
+
+        const promoted = await sessions.promoteGuest(session.id, payload.guestId);
+        if (!promoted) {
+          safeSend(socket, {
+            event: 'error',
+            payload: { message: 'Guest not found or is not a viewer.' },
+          });
+          return;
+        }
+
+        safeSend(socket, {
+          event: 'guest:promoted',
+          payload: { guest: publicGuest(promoted.guest), guests: publicGuests(promoted.session) },
+        });
+
+        const target = promoted.guest.socket;
+        const promotedMessage = {
+          event: 'guest:promoted',
+          payload: { guest: publicGuest(promoted.guest), permissions: promoted.guest.permissions },
+        };
+        if (target) {
+          safeSend(target, promotedMessage);
+        } else if (promoted.guest.serverId) {
+          publishToRemote(promoted.guest.serverId, {
+            sessionId: session.id,
+            guestId: promoted.guest.id,
+            event: promotedMessage.event,
+            payload: promotedMessage.payload,
+          });
         }
         return;
       }
@@ -249,8 +334,8 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
           payload: {
             command: payload.command,
             actions: payload.actions || [],
-            summary: payload.summary || 'Agent command received.'
-          }
+            summary: payload.summary || 'Agent command received.',
+          },
         };
 
         if (session.hostSocket) {
@@ -259,7 +344,7 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
           publishToRemote(session.hostServerId, {
             sessionId: session.id,
             event: msg.event,
-            payload: msg.payload
+            payload: msg.payload,
           });
         }
         return;
@@ -271,9 +356,14 @@ export function createSignalingHandler({ sessions, redisClient, redisSub, server
   }
 
   function publishToRemote(targetServerId, message) {
-    redisClient.publish(`tabtwin:server:${targetServerId}`, JSON.stringify(message)).catch((err) => {
-      console.error(`[TabTwin] Failed to publish message to remote server ${targetServerId}:`, err.message);
-    });
+    redisClient
+      .publish(`tabtwin:server:${targetServerId}`, JSON.stringify(message))
+      .catch((err) => {
+        console.error(
+          `[TabTwin] Failed to publish message to remote server ${targetServerId}:`,
+          err.message,
+        );
+      });
   }
 
   return { handleConnection };
@@ -283,8 +373,9 @@ export function publicGuest(guest) {
   return {
     id: guest.id,
     name: guest.name,
+    role: guest.role || 'guest',
     color: guest.color,
-    permissions: guest.permissions
+    permissions: guest.permissions,
   };
 }
 
@@ -292,7 +383,7 @@ export function withSender(socket, payload) {
   return {
     ...payload,
     senderRole: socket.tabTwin.role,
-    guestId: payload.guestId || socket.tabTwin.guestId
+    guestId: payload.guestId || socket.tabTwin.guestId,
   };
 }
 

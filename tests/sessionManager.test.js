@@ -37,7 +37,7 @@ test('createSession generates unique session ID, hostToken, and default permissi
   const manager = createSessionManager({
     clientUrl: 'http://localhost:5173',
     redisClient,
-    serverId: 'test-server-1'
+    serverId: 'test-server-1',
   });
 
   const session = await manager.createSession({ hostName: 'Alice' });
@@ -53,7 +53,7 @@ test('createSession generates unique session ID, hostToken, and default permissi
     canScroll: true,
     canClick: false,
     canType: false,
-    canNavigate: false
+    canNavigate: false,
   });
 });
 
@@ -62,7 +62,7 @@ test('getSession retrieves session and hydrates socket references', async () => 
   const manager = createSessionManager({
     clientUrl: 'http://localhost:5173',
     redisClient,
-    serverId: 'test-server-1'
+    serverId: 'test-server-1',
   });
 
   const created = await manager.createSession({ hostName: 'Bob' });
@@ -80,7 +80,7 @@ test('attachHost associates hostSocket with session', async () => {
   const manager = createSessionManager({
     clientUrl: 'http://localhost:5173',
     redisClient,
-    serverId: 'test-server-1'
+    serverId: 'test-server-1',
   });
 
   const created = await manager.createSession({ hostName: 'Charlie' });
@@ -96,7 +96,7 @@ test('addGuest and removeSocket manage participant lifecycle correctly', async (
   const manager = createSessionManager({
     clientUrl: 'http://localhost:5173',
     redisClient,
-    serverId: 'test-server-1'
+    serverId: 'test-server-1',
   });
 
   const created = await manager.createSession({ hostName: 'Diana' });
@@ -120,7 +120,7 @@ test('endSession removes session from storage and closes sockets', async () => {
   const manager = createSessionManager({
     clientUrl: 'http://localhost:5173',
     redisClient,
-    serverId: 'test-server-1'
+    serverId: 'test-server-1',
   });
 
   const created = await manager.createSession({ hostName: 'Grace' });
@@ -138,7 +138,7 @@ test('count returns total sessions in redis', async () => {
   const manager = createSessionManager({
     clientUrl: 'http://localhost:5173',
     redisClient,
-    serverId: 'test-server-1'
+    serverId: 'test-server-1',
   });
 
   await manager.createSession({ hostName: 'Host1' });
@@ -148,19 +148,172 @@ test('count returns total sessions in redis', async () => {
   assert.equal(total, 2);
 });
 
+// ---------- Read-only viewer role (#67) ----------
+
+test('createSession issues a distinct viewer link/token gated by viewerTokenHash', async () => {
+  const redisClient = new MockRedis();
+  const manager = createSessionManager({
+    clientUrl: 'http://localhost:5173',
+    redisClient,
+    serverId: 'test-server-1',
+  });
+
+  const session = await manager.createSession({ hostName: 'Host' });
+  assert.ok(
+    session.viewerToken,
+    'Session should have a plaintext viewerToken in the create response',
+  );
+  assert.ok(
+    session.viewerLink.includes(session.viewerToken),
+    'viewerLink should embed the viewer token',
+  );
+  assert.ok(session.viewerLink.includes('role=viewer'));
+});
+
+test('addGuest assigns role "guest" when no viewer token is supplied', async () => {
+  const redisClient = new MockRedis();
+  const manager = createSessionManager({
+    clientUrl: 'http://localhost:5173',
+    redisClient,
+    serverId: 'test-server-1',
+  });
+
+  const created = await manager.createSession({ hostName: 'Host' });
+  const socket = { readyState: 1, send: () => {} };
+  const joined = await manager.addGuest(created.id, socket, { name: 'Sam' });
+
+  assert.equal(joined.guest.role, 'guest');
+  assert.deepEqual(joined.guest.permissions, {
+    canHighlight: true,
+    canAnnotate: true,
+    canScroll: true,
+    canClick: false,
+    canType: false,
+    canNavigate: false,
+  });
+});
+
+test('addGuest assigns role "viewer" and forces every permission off when the correct viewer token is supplied', async () => {
+  const redisClient = new MockRedis();
+  const manager = createSessionManager({
+    clientUrl: 'http://localhost:5173',
+    redisClient,
+    serverId: 'test-server-1',
+  });
+
+  const created = await manager.createSession({ hostName: 'Host' });
+  const socket = { readyState: 1, send: () => {} };
+  const joined = await manager.addGuest(created.id, socket, {
+    name: 'Watcher',
+    viewerToken: created.viewerToken,
+  });
+
+  assert.equal(joined.guest.role, 'viewer');
+  assert.deepEqual(joined.guest.permissions, {
+    canHighlight: false,
+    canAnnotate: false,
+    canScroll: false,
+    canClick: false,
+    canType: false,
+    canNavigate: false,
+  });
+});
+
+test('addGuest ignores an invalid/forged viewer token and falls back to role "guest"', async () => {
+  const redisClient = new MockRedis();
+  const manager = createSessionManager({
+    clientUrl: 'http://localhost:5173',
+    redisClient,
+    serverId: 'test-server-1',
+  });
+
+  const created = await manager.createSession({ hostName: 'Host' });
+  const socket = { readyState: 1, send: () => {} };
+  const joined = await manager.addGuest(created.id, socket, {
+    name: 'Attacker',
+    viewerToken: 'not-the-real-token',
+  });
+
+  assert.equal(joined.guest.role, 'guest');
+});
+
+test('promoteGuest upgrades a viewer to co-host and restores default permissions', async () => {
+  const redisClient = new MockRedis();
+  const manager = createSessionManager({
+    clientUrl: 'http://localhost:5173',
+    redisClient,
+    serverId: 'test-server-1',
+  });
+
+  const created = await manager.createSession({ hostName: 'Host' });
+  const socket = { readyState: 1, send: () => {} };
+  const joined = await manager.addGuest(created.id, socket, {
+    name: 'Watcher',
+    viewerToken: created.viewerToken,
+  });
+
+  const promoted = await manager.promoteGuest(created.id, joined.guest.id);
+  assert.ok(promoted);
+  assert.equal(promoted.guest.role, 'co-host');
+  assert.deepEqual(promoted.guest.permissions, {
+    canHighlight: true,
+    canAnnotate: true,
+    canScroll: true,
+    canClick: false,
+    canType: false,
+    canNavigate: false,
+  });
+});
+
+test('promoteGuest is a no-op for a guest who is not a viewer', async () => {
+  const redisClient = new MockRedis();
+  const manager = createSessionManager({
+    clientUrl: 'http://localhost:5173',
+    redisClient,
+    serverId: 'test-server-1',
+  });
+
+  const created = await manager.createSession({ hostName: 'Host' });
+  const socket = { readyState: 1, send: () => {} };
+  const joined = await manager.addGuest(created.id, socket, { name: 'Sam' });
+
+  const promoted = await manager.promoteGuest(created.id, joined.guest.id);
+  assert.equal(promoted, null);
+});
+
+test('promoteGuest returns null for an unknown guest id', async () => {
+  const redisClient = new MockRedis();
+  const manager = createSessionManager({
+    clientUrl: 'http://localhost:5173',
+    redisClient,
+    serverId: 'test-server-1',
+  });
+
+  const created = await manager.createSession({ hostName: 'Host' });
+  const promoted = await manager.promoteGuest(created.id, 'does-not-exist');
+  assert.equal(promoted, null);
+});
+
 test('publicGuests formats guest array safely', () => {
   const session = {
     guests: [
-      { id: 'g1', name: 'Alice', color: '#ff0000', permissions: { canClick: true }, secret: 'hide-me' }
-    ]
+      {
+        id: 'g1',
+        name: 'Alice',
+        color: '#ff0000',
+        permissions: { canClick: true },
+        secret: 'hide-me',
+      },
+    ],
   };
   const publicList = publicGuests(session);
   assert.equal(publicList.length, 1);
   assert.deepEqual(publicList[0], {
     id: 'g1',
     name: 'Alice',
+    role: 'guest',
     color: '#ff0000',
-    permissions: { canClick: true }
+    permissions: { canClick: true },
   });
   assert.equal(publicList[0].secret, undefined);
 });
@@ -171,7 +324,7 @@ test('safeSend sends JSON message only when readyState is 1', () => {
     readyState: 1,
     send(data) {
       sentData = data;
-    }
+    },
   };
 
   safeSend(openSocket, { test: 'hello' });
@@ -182,7 +335,7 @@ test('safeSend sends JSON message only when readyState is 1', () => {
     readyState: 3,
     send() {
       closedSent = true;
-    }
+    },
   };
   safeSend(closedSocket, { test: 'world' });
   assert.equal(closedSent, false);

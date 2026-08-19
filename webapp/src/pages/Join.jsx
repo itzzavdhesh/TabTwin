@@ -12,6 +12,14 @@ export default function Join({ sessionId }) {
   const [message, setMessage] = useState('Checking session...');
   const [errorType, setErrorType] = useState(null);
 
+  // A viewer invite link carries `role=viewer&vt=<token>`. The token (not the
+  // `role` label) is what the server uses to grant the observe-only role, so
+  // it is preserved and forwarded even though the label alone proves nothing.
+  const searchParams = new URLSearchParams(window.location.search);
+  const requestedRole = searchParams.get('role');
+  const viewerToken = searchParams.get('vt');
+  const isViewerInvite = requestedRole === 'viewer' && Boolean(viewerToken);
+
   useEffect(() => {
     fetch(`${API_URL}/api/session/${sessionId}`)
       .then((res) => {
@@ -38,7 +46,12 @@ export default function Join({ sessionId }) {
   function joinSession(event) {
     event.preventDefault();
     const guestName = name.trim() || 'Guest';
-    window.location.href = `/session/${sessionId}?name=${encodeURIComponent(guestName)}`;
+    const destination = new URLSearchParams({ name: guestName });
+    if (isViewerInvite) {
+      destination.set('role', 'viewer');
+      destination.set('vt', viewerToken);
+    }
+    window.location.href = `/session/${sessionId}?${destination.toString()}`;
   }
 
   return (
@@ -46,6 +59,11 @@ export default function Join({ sessionId }) {
       <section className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
         <p className="text-sm font-semibold uppercase tracking-wide text-teal-600">Join TabTwin</p>
         <h1 className="mt-2 text-3xl font-bold text-slate-950">Enter the shared session</h1>
+        {isViewerInvite ? (
+          <p className="mt-2 inline-block rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600">
+            Read-only viewer invite
+          </p>
+        ) : null}
         <div className="mt-5">
           <SessionStatus status={status} label={message} />
         </div>
@@ -69,7 +87,9 @@ export default function Join({ sessionId }) {
             Join Session
           </button>
         </form>
-        <p className="mt-4 text-xs leading-5 text-slate-500">Guest profile preferences are coming soon.</p>
+        <p className="mt-4 text-xs leading-5 text-slate-500">
+          Guest profile preferences are coming soon.
+        </p>
       </section>
     </main>
   );

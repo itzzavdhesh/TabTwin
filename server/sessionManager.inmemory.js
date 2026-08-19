@@ -13,7 +13,18 @@ const DEFAULT_PERMISSIONS = {
   canScroll: true,
   canClick: false,
   canType: false,
-  canNavigate: false
+  canNavigate: false,
+};
+
+// Viewers are observe-only: every interactive permission is forced off
+// server-side regardless of what a client requests.
+const VIEWER_PERMISSIONS = {
+  canHighlight: false,
+  canAnnotate: false,
+  canScroll: false,
+  canClick: false,
+  canType: false,
+  canNavigate: false,
 };
 
 const GUEST_COLORS = ['#2563eb', '#16a34a', '#dc2626', '#9333ea', '#ea580c', '#0891b2'];
@@ -42,18 +53,26 @@ export function createSessionManager({ clientUrl }) {
       throw new Error('Failed to generate a unique session ID after maximum attempts.');
     }
 
+    const viewerToken = crypto.randomBytes(32).toString('hex');
+    const viewerTokenHash = crypto.createHash('sha256').update(viewerToken).digest('hex');
+    const baseLink = clientUrl.replace(/\/$/, '');
+
     const session = {
       id,
       hostName,
-      link: `${clientUrl.replace(/\/$/, '')}/join/${id}`,
+      viewerTokenHash,
+      link: `${baseLink}/join/${id}`,
+      viewerLink: `${baseLink}/join/${id}?role=viewer&vt=${viewerToken}`,
       createdAt: new Date().toISOString(),
       hostSocket: null,
       guests: [],
       permissions: { ...DEFAULT_PERMISSIONS },
-      activityLog: []
+      activityLog: [],
     };
     sessions.set(id, session);
-    return session;
+    // Plaintext token is returned only from this create call, never stored
+    // on the session object itself (avoids leaking it via getSession).
+    return { ...session, viewerToken };
   }
 
   async function getSession(id) {
@@ -82,20 +101,52 @@ export function createSessionManager({ clientUrl }) {
     return session;
   }
 
-  async function addGuest(sessionId, socket, { name = 'Guest' } = {}) {
+  async function addGuest(sessionId, socket, { name = 'Guest', viewerToken = null } = {}) {
     const session = sessions.get(sessionId);
     if (!session) return null;
+
+    // Role is derived from the viewer token's hash, never from a raw
+    // client-supplied `role` string — removing `?role=viewer` from the URL
+    // has no effect because the token, not the label, decides the role.
+    const isViewer = Boolean(
+      viewerToken &&
+      session.viewerTokenHash &&
+      crypto.createHash('sha256').update(viewerToken).digest('hex') === session.viewerTokenHash,
+    );
+    const role = isViewer ? 'viewer' : 'guest';
 
     const guest = {
       id: crypto.randomBytes(6).toString('hex'),
       name,
+      role,
       color: GUEST_COLORS[session.guests.length % GUEST_COLORS.length],
       socket,
-      permissions: { ...DEFAULT_PERMISSIONS }
+      permissions: role === 'viewer' ? { ...VIEWER_PERMISSIONS } : { ...DEFAULT_PERMISSIONS },
     };
 
     session.guests.push(guest);
-    session.activityLog.unshift({ at: Date.now(), message: `${name} joined` });
+    session.activityLog.unshift({
+      at: Date.now(),
+      message: `${name} joined${role === 'viewer' ? ' as a viewer' : ''}`,
+    });
+    return { session, guest };
+  }
+
+  /**
+   * Promotes a viewer to a full co-host guest, restoring default
+   * interactive permissions. No-op (returns null) if the guest is not a
+   * viewer or does not exist.
+   */
+  async function promoteGuest(sessionId, guestId) {
+    const session = sessions.get(sessionId);
+    if (!session) return null;
+
+    const guest = session.guests.find((g) => g.id === guestId);
+    if (!guest || guest.role !== 'viewer') return null;
+
+    guest.role = 'co-host';
+    guest.permissions = { ...DEFAULT_PERMISSIONS };
+    session.activityLog.unshift({ at: Date.now(), message: `${guest.name} promoted to co-host` });
     return { session, guest };
   }
 
@@ -112,7 +163,7 @@ export function createSessionManager({ clientUrl }) {
         session.activityLog.unshift({ at: Date.now(), message: 'Guest disconnected' });
         safeSend(session.hostSocket, {
           event: 'session:guest-left',
-          payload: { guests: publicGuests(session) }
+          payload: { guests: publicGuests(session) },
         });
       }
     }
@@ -128,8 +179,9 @@ export function createSessionManager({ clientUrl }) {
     endSession,
     attachHost,
     addGuest,
+    promoteGuest,
     removeSocket,
-    count
+    count,
   };
 }
 
@@ -137,8 +189,9 @@ export function publicGuests(session) {
   return session.guests.map((guest) => ({
     id: guest.id,
     name: guest.name,
+    role: guest.role || 'guest',
     color: guest.color,
-    permissions: guest.permissions
+    permissions: guest.permissions,
   }));
 }
 

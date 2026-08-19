@@ -13,7 +13,18 @@ const DEFAULT_PERMISSIONS = {
   canScroll: true,
   canClick: false,
   canType: false,
-  canNavigate: false
+  canNavigate: false,
+};
+
+// Viewers are observe-only: every interactive permission is forced off
+// server-side regardless of what a client requests.
+const VIEWER_PERMISSIONS = {
+  canHighlight: false,
+  canAnnotate: false,
+  canScroll: false,
+  canClick: false,
+  canType: false,
+  canNavigate: false,
 };
 
 const GUEST_COLORS = ['#2563eb', '#16a34a', '#dc2626', '#9333ea', '#ea580c', '#0891b2'];
@@ -59,7 +70,7 @@ export function createSessionManager({ clientUrl, redisClient, serverId }) {
       guests: data.guests.map((g) => {
         const live = sockets.guests.find((s) => s.id === g.id);
         return { ...g, socket: live?.socket ?? null };
-      })
+      }),
     };
   }
 
@@ -84,7 +95,7 @@ export function createSessionManager({ clientUrl, redisClient, serverId }) {
         placeholder,
         'EX',
         SESSION_TTL_SECONDS,
-        'NX'
+        'NX',
       );
       if (result === 'OK') {
         id = candidate;
@@ -98,16 +109,26 @@ export function createSessionManager({ clientUrl, redisClient, serverId }) {
     const hostToken = crypto.randomBytes(32).toString('hex');
     const hostTokenHash = crypto.createHash('sha256').update(hostToken).digest('hex');
 
+    // A separate viewer token gates the observe-only invite link. Role is
+    // derived server-side by matching this token's hash, never trusted from
+    // a client-supplied `role` string.
+    const viewerToken = crypto.randomBytes(32).toString('hex');
+    const viewerTokenHash = crypto.createHash('sha256').update(viewerToken).digest('hex');
+
+    const baseLink = clientUrl.replace(/\/$/, '');
+
     const session = {
       id,
       hostName,
       hostTokenHash,
-      link: `${clientUrl.replace(/\/$/, '')}/join/${id}`,
+      viewerTokenHash,
+      link: `${baseLink}/join/${id}`,
+      viewerLink: `${baseLink}/join/${id}?role=viewer&vt=${viewerToken}`,
       createdAt: new Date().toISOString(),
       // hostSocket is NOT stored in Redis — it lives only in socketStore.
       guests: [],
       permissions: { ...DEFAULT_PERMISSIONS },
-      activityLog: []
+      activityLog: [],
     };
 
     // Overwrite the placeholder with the full session object.
@@ -115,6 +136,7 @@ export function createSessionManager({ clientUrl, redisClient, serverId }) {
     socketStore.set(id, { hostSocket: null, guests: [] });
     const hydrated = _hydrate(session);
     hydrated.hostToken = hostToken; // inject plaintext token ONLY for the create response
+    hydrated.viewerToken = viewerToken; // inject plaintext token ONLY for the create response
     return hydrated;
   }
 
@@ -156,22 +178,33 @@ export function createSessionManager({ clientUrl, redisClient, serverId }) {
     return _hydrate(data);
   }
 
-  async function addGuest(sessionId, socket, { name = 'Guest' } = {}) {
+  async function addGuest(sessionId, socket, { name = 'Guest', viewerToken = null } = {}) {
     const data = await _load(sessionId);
     if (!data) return null;
+
+    // Role is derived from the viewer token's hash, never from a raw
+    // client-supplied `role` string — removing `?role=viewer` from the URL
+    // has no effect because the token, not the label, decides the role.
+    const isViewer = Boolean(
+      viewerToken &&
+      data.viewerTokenHash &&
+      crypto.createHash('sha256').update(viewerToken).digest('hex') === data.viewerTokenHash,
+    );
+    const role = isViewer ? 'viewer' : 'guest';
 
     const guestId = crypto.randomBytes(6).toString('hex');
     const guestData = {
       id: guestId,
       name,
+      role,
       color: GUEST_COLORS[data.guests.length % GUEST_COLORS.length],
-      permissions: { ...DEFAULT_PERMISSIONS },
-      serverId: serverId
+      permissions: role === 'viewer' ? { ...VIEWER_PERMISSIONS } : { ...DEFAULT_PERMISSIONS },
+      serverId: serverId,
       // socket is NOT stored in Redis.
     };
 
     data.guests.push(guestData);
-    _logActivity(data, `${name} joined`);
+    _logActivity(data, `${name} joined${role === 'viewer' ? ' as a viewer' : ''}`);
     await _save(data);
 
     const entry = _socketEntry(sessionId);
@@ -180,6 +213,27 @@ export function createSessionManager({ clientUrl, redisClient, serverId }) {
     const session = _hydrate(data);
     const guest = session.guests.find((g) => g.id === guestId);
     return { session, guest };
+  }
+
+  /**
+   * Promotes a viewer to a full co-host guest, restoring default
+   * interactive permissions. No-op (returns null) if the guest is not a
+   * viewer or does not exist. Only callable by host-authenticated code paths.
+   */
+  async function promoteGuest(sessionId, guestId) {
+    const data = await _load(sessionId);
+    if (!data) return null;
+
+    const guest = data.guests.find((g) => g.id === guestId);
+    if (!guest || guest.role !== 'viewer') return null;
+
+    guest.role = 'co-host';
+    guest.permissions = { ...DEFAULT_PERMISSIONS };
+    _logActivity(data, `${guest.name} promoted to co-host`);
+    await _save(data);
+
+    const session = _hydrate(data);
+    return { session, guest: session.guests.find((g) => g.id === guestId) };
   }
 
   async function removeSocket(socket) {
@@ -199,9 +253,7 @@ export function createSessionManager({ clientUrl, redisClient, serverId }) {
 
       // Identify the guest that just left before the local list is filtered.
       const disconnectedIds = new Set(
-        sockets.guests
-          .filter((g) => g.socket === socket)
-          .map((g) => g.id)
+        sockets.guests.filter((g) => g.socket === socket).map((g) => g.id),
       );
       sockets.guests = sockets.guests.filter((g) => g.socket !== socket);
 
@@ -221,7 +273,7 @@ export function createSessionManager({ clientUrl, redisClient, serverId }) {
         if (updatedData) {
           safeSend(hostSocket, {
             event: 'session:guest-left',
-            payload: { guests: publicGuests(_hydrate(updatedData)) }
+            payload: { guests: publicGuests(_hydrate(updatedData)) },
           });
         }
         changed = true;
@@ -237,9 +289,16 @@ export function createSessionManager({ clientUrl, redisClient, serverId }) {
 
   // Replace the existing count() function (around line 225-227)
   async function count() {
-    let cursor = '0', total = 0;
+    let cursor = '0',
+      total = 0;
     do {
-      const [next, keys] = await redisClient.scan(cursor, 'MATCH', 'tabtwin:session:*', 'COUNT', 100);
+      const [next, keys] = await redisClient.scan(
+        cursor,
+        'MATCH',
+        'tabtwin:session:*',
+        'COUNT',
+        100,
+      );
       total += keys.length;
       cursor = next;
     } while (cursor !== '0');
@@ -252,8 +311,9 @@ export function createSessionManager({ clientUrl, redisClient, serverId }) {
     endSession,
     attachHost,
     addGuest,
+    promoteGuest,
     removeSocket,
-    count
+    count,
   };
 }
 
@@ -261,8 +321,9 @@ export function publicGuests(session) {
   return session.guests.map((guest) => ({
     id: guest.id,
     name: guest.name,
+    role: guest.role || 'guest',
     color: guest.color,
-    permissions: guest.permissions
+    permissions: guest.permissions,
   }));
 }
 
