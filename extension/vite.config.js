@@ -3,13 +3,14 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
+  base: './',
   plugins: [react()],
   root: 'popup',
   build: {
     outDir: '../popup-dist',
-    emptyOutDir: true
+    emptyOutDir: true,
   },
   server: {
-    port: 5174
-  }
+    port: 5174,
+  },
 });

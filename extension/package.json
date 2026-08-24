@@ -3,6 +3,7 @@
   "name": "@tabtwin/extension",
   "version": "1.0.0",
   "private": true,
+  "author": "Avdhesh Kumar Dadhich <aavdhesh.dadhich@gmail.com>",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",

@@ -15,17 +15,17 @@ TabTwin enables real-time collaboration directly inside a browser tab. A host ca
 
 ## ✨ Features
 
-* 🖱️ **Ghost Cursor Collaboration** — Guests can move a collaborative cursor inside the host's browser tab.
-* ✏️ **Annotations** — Highlight and annotate content directly on the shared page.
-* 🤖 **AI Agent** — An AI agent can assist with approved browser actions.
-* 🔐 **Host-Controlled Permissions** — The host remains in control and can approve or revoke requested actions.
-* 🌐 **Browser-Based Guest Access** — Guests can join using a shared session link without installing an extension.
-* ⚡ **Real-Time Communication** — WebRTC data channels provide real-time collaboration.
-* 🔄 **WebSocket Signaling** — WebSocket is used for signaling and fallback communication.
-* 🧠 **Session Recording** — Participants can optionally record collaboration events.
-* ▶️ **Session Playback** — Recorded events can be played back, paused, resumed, and reviewed.
-* 💾 **Redis Session Storage** — Session state is stored in Redis.
-* 🧩 **Chrome Extension** — Hosts use a Chrome Manifest V3 extension to manage browser-tab collaboration.
+- 🖱️ **Ghost Cursor Collaboration** — Guests can move a collaborative cursor inside the host's browser tab.
+- ✏️ **Annotations** — Highlight and annotate content directly on the shared page.
+- 🤖 **AI Agent** — An AI agent can assist with approved browser actions.
+- 🔐 **Host-Controlled Permissions** — The host remains in control and can approve or revoke requested actions.
+- 🌐 **Browser-Based Guest Access** — Guests can join using a shared session link without installing an extension.
+- ⚡ **Real-Time Communication** — WebRTC data channels provide real-time collaboration.
+- 🔄 **WebSocket Signaling** — WebSocket is used for signaling and fallback communication.
+- 🧠 **Session Recording** — Participants can optionally record collaboration events.
+- ▶️ **Session Playback** — Recorded events can be played back, paused, resumed, and reviewed.
+- 💾 **Redis Session Storage** — Session state is stored in Redis.
+- 🧩 **Chrome Extension** — Hosts use a Chrome Manifest V3 extension to manage browser-tab collaboration.
 
 ---
 
@@ -35,11 +35,11 @@ Traditional screen sharing allows teammates to watch another person's screen, bu
 
 A participant cannot easily:
 
-* Point at something on the screen.
-* Highlight important content.
-* Add annotations.
-* Request a browser action.
-* Collaborate directly inside the host's browser tab.
+- Point at something on the screen.
+- Highlight important content.
+- Add annotations.
+- Request a browser action.
+- Collaborate directly inside the host's browser tab.
 
 TabTwin addresses this by allowing guests or an AI agent to appear inside the host's real browser tab as a **live collaborative participant**, while keeping the host in control of browser actions.
 
@@ -151,17 +151,17 @@ For a more detailed technical explanation, see [`ARCHITECTURE.md`](./ARCHITECTUR
 
 | Browser | Guest Support | Installation Required |
 | ------- | ------------- | --------------------- |
-| Chrome  | ✅ Yes         | ❌ No                  |
-| Firefox | ✅ Yes         | ❌ No                  |
-| Edge    | ✅ Yes         | ❌ No                  |
-| Safari  | ✅ Yes         | ❌ No                  |
+| Chrome  | ✅ Yes        | ❌ No                 |
+| Firefox | ✅ Yes        | ❌ No                 |
+| Edge    | ✅ Yes        | ❌ No                 |
+| Safari  | ✅ Yes        | ❌ No                 |
 
 ### Host Browser
 
 The host extension currently supports **Chrome** because the MVP depends on Chrome Manifest V3 extension APIs.
 
-| Browser | Host Extension            |
-| ------- | ------------------------- |
+| Browser | Host Extension             |
+| ------- | -------------------------- |
 | Chrome  | ✅ Supported               |
 | Firefox | ❌ Not currently supported |
 | Edge    | ❌ Not currently supported |
@@ -173,30 +173,30 @@ The host extension currently supports **Chrome** because the MVP depends on Chro
 
 ### Frontend
 
-* React
-* Vite
-* Tailwind CSS
+- React
+- Vite
+- Tailwind CSS
 
 ### Backend
 
-* Node.js
-* REST APIs
-* WebSocket
-* WebRTC signaling
+- Node.js
+- REST APIs
+- WebSocket
+- WebRTC signaling
 
 ### Browser Extension
 
-* Chrome Extension
-* Manifest V3
+- Chrome Extension
+- Manifest V3
 
 ### Data & Infrastructure
 
-* Redis
-* ioredis
+- Redis
+- ioredis
 
 ### AI
 
-* Anthropic Claude API
+- Anthropic Claude API
 
 ---
 
@@ -206,11 +206,11 @@ The host extension currently supports **Chrome** because the MVP depends on Chro
 
 Before running TabTwin locally, make sure you have:
 
-* Node.js installed.
-* npm installed.
-* Google Chrome installed.
-* Redis running locally or remotely.
-* An Anthropic API key if you want to use Claude-powered actions.
+- Node.js installed.
+- npm installed.
+- Google Chrome installed.
+- Redis running locally or remotely.
+- An Anthropic API key if you want to use Claude-powered actions.
 
 ---
 
@@ -351,12 +351,12 @@ TabTwin supports optional session recording from the guest session interface.
 
 When recording is enabled, TabTwin can capture a lightweight timeline of collaboration events, including:
 
-* Session lifecycle events.
-* Cursor movement.
-* Scroll events.
-* Annotation additions.
-* Click requests.
-* Typing approvals.
+- Session lifecycle events.
+- Cursor movement.
+- Scroll events.
+- Annotation additions.
+- Click requests.
+- Typing approvals.
 
 ### Playback
 
@@ -364,11 +364,11 @@ Recorded sessions can be reviewed directly through the session interface.
 
 The current playback implementation supports:
 
-* Play
-* Pause
-* Resume
-* Seek
-* Timeline review
+- Play
+- Pause
+- Resume
+- Seek
+- Timeline review
 
 Currently, recordings are kept **in memory for the active session** and are not persisted to disk or exported as standalone files.
 
@@ -400,10 +400,10 @@ TabTwin uses Redis to store session state.
 
 Redis provides:
 
-* Session persistence.
-* Shared session state.
-* Support for horizontally scaled servers.
-* Centralized session management.
+- Session persistence.
+- Shared session state.
+- Support for horizontally scaled servers.
+- Centralized session management.
 
 For local development:
 
@@ -425,12 +425,12 @@ The TabTwin server provides APIs for session management and real-time collaborat
 
 The API layer is responsible for functionality such as:
 
-* Creating collaboration sessions.
-* Managing session information.
-* WebSocket signaling.
-* WebRTC connection establishment.
-* Collaboration event handling.
-* AI-assisted actions.
+- Creating collaboration sessions.
+- Managing session information.
+- WebSocket signaling.
+- WebRTC connection establishment.
+- Collaboration event handling.
+- AI-assisted actions.
 
 For the exact API routes and request/response formats, refer to the server implementation.
 
@@ -473,8 +473,8 @@ TabTwin/
 
 Additional technical documentation is available in:
 
-* [`ARCHITECTURE.md`](./ARCHITECTURE.md) — Detailed system architecture and technical design.
-* `docs/` — Additional project documentation.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — Detailed system architecture and technical design.
+- `docs/` — Additional project documentation.
 
 ---
 
@@ -570,10 +570,10 @@ Open the original TabTwin repository on GitHub and create a Pull Request from yo
 
 In the PR description, explain:
 
-* What you changed.
-* Why the change was needed.
-* How you tested it.
-* Any relevant references.
+- What you changed.
+- Why the change was needed.
+- How you tested it.
+- Any relevant references.
 
 ---
 
@@ -597,10 +597,10 @@ Feature requests are welcome.
 
 When proposing a feature, explain:
 
-* What problem the feature solves.
-* How the feature could work.
-* Why it would benefit TabTwin users.
-* Any alternative approaches you considered.
+- What problem the feature solves.
+- How the feature could work.
+- Why it would benefit TabTwin users.
+- Any alternative approaches you considered.
 
 ---
 
@@ -616,16 +616,16 @@ Follow the project's recommended security reporting process.
 
 Potential areas for future development include:
 
-* Improved AI-assisted browser actions.
-* Additional browser extension support.
-* Enhanced session recording.
-* Persistent recording storage.
-* Recording export functionality.
-* Improved annotation capabilities.
-* More detailed API documentation.
-* Automated tests for collaboration workflows.
-* Improved developer documentation.
-* Enhanced permission and security controls.
+- Improved AI-assisted browser actions.
+- Additional browser extension support.
+- Enhanced session recording.
+- Persistent recording storage.
+- Recording export functionality.
+- Improved annotation capabilities.
+- More detailed API documentation.
+- Automated tests for collaboration workflows.
+- Improved developer documentation.
+- Enhanced permission and security controls.
 
 ---
 
@@ -641,10 +641,25 @@ See the [`LICENSE`](./LICENSE) file for the complete license text.
 
 If you find TabTwin useful:
 
-* ⭐ Star the repository.
-* 🐛 Report bugs.
-* 💡 Suggest features.
-* 🔧 Submit improvements.
-* 🤝 Contribute to the project.
+- ⭐ Star the repository.
+- 🐛 Report bugs.
+- 💡 Suggest features.
+- 🔧 Submit improvements.
+- 🤝 Contribute to the project.
 
 Every contribution helps make TabTwin better.
+
+---
+
+## 👤 Project Owner & Creator
+
+**Avdhesh Kumar Dadhich**  
+_Creator & Lead Architect of TabTwin_
+
+- 📧 **Email**: [aavdhesh.dadhich@gmail.com](mailto:aavdhesh.dadhich@gmail.com)
+- 📞 **Phone**: [+91 7690863039](tel:7690863039)
+- 🐙 **GitHub**: [github.com/itzzavdheshh](https://github.com/itzzavdheshh)
+- 💼 **LinkedIn**: [linkedin.com/in/aavdhesh](https://www.linkedin.com/in/aavdhesh)
+- 𝕏 **Twitter / X**: [x.com/Itzzavdheshh](https://x.com/Itzzavdheshh)
+- 📸 **Instagram**: [instagram.com/itzzavdheshh](https://www.instagram.com/itzzavdheshh?igsi=MTFkNTM5OGljOHV5aQ==)
+- 💬 **Discord**: [discord.com/users/1385290408698839223](https://discord.com/users/1385290408698839223)

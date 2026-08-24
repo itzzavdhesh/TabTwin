@@ -3,6 +3,7 @@
   "name": "@tabtwin/server",
   "version": "1.0.0",
   "private": true,
+  "author": "Avdhesh Kumar Dadhich <aavdhesh.dadhich@gmail.com>",
   "type": "module",
   "main": "index.js",
   "scripts": {

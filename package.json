@@ -4,6 +4,11 @@
   "version": "1.0.0",
   "private": true,
   "description": "Real-time browser tab collaboration with ghost cursors, annotations, and an AI browser agent.",
+  "author": "Avdhesh Kumar Dadhich <aavdhesh.dadhich@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/itzzavdheshh/TabTwin.git"
+  },
   "license": "MIT",
   "type": "module",
   "workspaces": [
@@ -28,6 +33,7 @@
   "devDependencies": {
     "@commitlint/cli": "^19.0.0",
     "@commitlint/config-conventional": "^19.0.0",
+    "fdir": "^6.5.0",
     "husky": "^9.1.7",
     "lint-staged": "^15.2.0",
     "prettier": "^3.4.2"
